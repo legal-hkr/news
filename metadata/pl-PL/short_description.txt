@@ -1,0 +1,1 @@
+Prywatny czytnik kanałów RSS i Atom z pełną treścią, także bez sieci

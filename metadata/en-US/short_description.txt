@@ -1,0 +1,1 @@
+Private full-text feed reader (RSS, Atom) that works offline
