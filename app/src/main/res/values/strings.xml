@@ -52,6 +52,7 @@
     <string name="label_licenses">Open-source licenses</string>
     <string name="desc_licenses">Open-source components used by News</string>
     <string name="label_apache_license" translatable="false">Apache License 2.0</string>
+    <string name="label_mit_license" translatable="false">MIT License</string>
     <string name="title_about_source">Source code</string>
     <string name="msg_about_privacy">News talks only to the sites of the feeds you subscribe to: it fetches their feeds, their article pages and their images. Nothing else leaves the phone. No account, no analytics, no other service.</string>
 </resources>

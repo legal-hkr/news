@@ -2,6 +2,8 @@
 
 package sh.hnet.news.ui.settings
 
+import androidx.annotation.RawRes
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -27,38 +29,44 @@ import sh.hnet.news.ui.components.SettingsGroup
 import sh.hnet.news.ui.components.SettingsPage
 import sh.hnet.news.ui.components.settingsRowColors
 
+/** A license the shipped components come under; [text] is its full text in res/raw. */
+private enum class License(@param:StringRes val label: Int, @param:RawRes val text: Int) {
+    APACHE(R.string.label_apache_license, R.raw.apache_license_2_0),
+    MIT_JSOUP(R.string.label_mit_license, R.raw.mit_license_jsoup),
+}
+
 /**
- * What ships in the app, all under the Apache License 2.0 (checked against the release runtime
- * classpath; update when a dependency with another license is added).
+ * What ships in the app, with its license (checked against the release runtime classpath; update
+ * when a dependency is added). The MIT License's text carries the copyright line of its component,
+ * so each MIT component has a text of its own.
  */
 private val COMPONENTS = listOf(
-    "AndroidX (Jetpack Compose, Material 3, Room, Navigation 3, DataStore, Lifecycle, Activity, Core)",
-    "Kotlin",
-    "kotlinx.coroutines",
-    "kotlinx.serialization",
-    "Guava",
-    "Okio",
-    "JSpecify",
-    "JetBrains Java Annotations",
-    "Material Symbols",
+    "AndroidX (Jetpack Compose, Material 3, Navigation 3, DataStore, Lifecycle, Activity, Core)" to License.APACHE,
+    "Kotlin" to License.APACHE,
+    "kotlinx.coroutines" to License.APACHE,
+    "kotlinx.serialization" to License.APACHE,
+    "jsoup" to License.MIT_JSOUP,
+    "Guava" to License.APACHE,
+    "Okio" to License.APACHE,
+    "JSpecify" to License.APACHE,
+    "JetBrains Java Annotations" to License.APACHE,
+    "Material Symbols" to License.APACHE,
 )
 
 /** Settings › About › Open-source licenses, as Music's: each component and its license, the text on tap. */
 @Composable
 fun LicensesScreen(onBack: () -> Unit) {
     val resources = LocalResources.current
-    val licenseText = remember(resources) { resources.openRawResource(R.raw.apache_license_2_0).bufferedReader().use { it.readText() } }
-    var showing by rememberSaveable { mutableStateOf(false) }
-    val license = stringResource(R.string.label_apache_license)
+    var showing by rememberSaveable { mutableStateOf<License?>(null) }
     SettingsPage(title = stringResource(R.string.label_licenses), onBack = onBack) {
         SettingsGroup {
-            COMPONENTS.forEach { name ->
+            COMPONENTS.forEach { (name, license) ->
                 row { shapes ->
                     SegmentedListItem(
-                        onClick = { showing = true },
+                        onClick = { showing = license },
                         shapes = shapes,
                         colors = settingsRowColors(),
-                        supportingContent = { Text(license) },
+                        supportingContent = { Text(stringResource(license.label)) },
                     ) {
                         Text(name)
                     }
@@ -66,16 +74,17 @@ fun LicensesScreen(onBack: () -> Unit) {
             }
         }
     }
-    if (showing) {
+    showing?.let { license ->
+        val licenseText = remember(resources, license) { resources.openRawResource(license.text).bufferedReader().use { it.readText() } }
         AlertDialog(
-            onDismissRequest = { showing = false },
-            title = { Text(license) },
+            onDismissRequest = { showing = null },
+            title = { Text(stringResource(license.label)) },
             text = {
                 SelectionContainer(Modifier.heightIn(max = 480.dp).verticalScroll(rememberScrollState())) {
                     Text(licenseText, style = MaterialTheme.typography.bodySmall)
                 }
             },
-            confirmButton = { TextButton(onClick = { showing = false }) { Text(stringResource(R.string.button_close)) } },
+            confirmButton = { TextButton(onClick = { showing = null }) { Text(stringResource(R.string.button_close)) } },
         )
     }
 }
