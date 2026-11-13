@@ -5,6 +5,7 @@ package sh.hnet.news.ui.feeds
 import android.content.ClipData
 import android.widget.Toast
 import androidx.annotation.DrawableRes
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,6 +27,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -48,7 +50,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import sh.hnet.news.NewsApplication
 import sh.hnet.news.R
+import sh.hnet.news.Look
+import sh.hnet.news.data.ArticleRow
 import sh.hnet.news.data.Feed
+import sh.hnet.news.ui.articles.timeOfDay
+import sh.hnet.news.ui.components.LookControls
 import sh.hnet.news.feed.Addresses
 import sh.hnet.news.feed.Opml
 import sh.hnet.news.ui.components.DestructiveButton
@@ -63,7 +69,7 @@ import sh.hnet.news.ui.components.settingsRowColors
 /**
  * A feed's page (SPEC §8): its name, address and folder, its content source, whether its images are
  * stored and whether it refreshes in the background; Unsubscribe at the end, at once with Undo.
- * "On the list", "Keep articles" and "Last refresh" join with the stages that give them meaning.
+ * "Keep articles" and "Last refresh" join with the stages that give them meaning.
  */
 @Composable
 fun FeedScreen(feedId: Long, onBack: () -> Unit, snackbars: SnackbarHostState, messageScope: CoroutineScope) {
@@ -81,6 +87,11 @@ fun FeedScreen(feedId: Long, onBack: () -> Unit, snackbars: SnackbarHostState, m
     val unsubscribed = stringResource(R.string.msg_unsubscribed)
     val undo = stringResource(R.string.button_undo)
     val folder = folders.firstOrNull { it.id == feed.folderId }
+    val context = LocalContext.current
+    val appLook by app.preferences.look.collectAsStateWithLifecycle(Look.THUMBNAIL)
+    val appLines by app.preferences.previewLines.collectAsStateWithLifecycle(0)
+    // This feed's newest article
+    val sample by produceState<ArticleRow?>(null, feedId) { value = app.articles.sample(feedId, preferImage = false) }
 
     SettingsPage(title = feed.title, onBack = onBack) {
         SettingsGroup(stringResource(R.string.title_feed)) {
@@ -104,6 +115,26 @@ fun FeedScreen(feedId: Long, onBack: () -> Unit, snackbars: SnackbarHostState, m
             }
             row { shapes ->
                 SettingsSwitchRow(shapes, R.drawable.ic_sync, stringResource(R.string.label_refresh_in_background), feed.backgroundRefresh, { on -> scope.launch { app.feeds.setBackgroundRefresh(feed.id, on) } })
+            }
+        }
+        // The feed's rows follow the app's look until it gets its own (SPEC §4.10)
+        Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            SettingsGroup(stringResource(R.string.title_on_the_list)) {
+                row { shapes ->
+                    SettingsSwitchRow(shapes, R.drawable.ic_list, stringResource(R.string.label_look_as_in_app), !feed.ownLook, { asApp ->
+                        // Its own look starts from the app's
+                        scope.launch { app.feeds.setLook(feed.id, !asApp, feed.look ?: appLook.name, if (feed.look == null) appLines else feed.previewLines) }
+                    }, supporting = stringResource(R.string.desc_look_as_in_app))
+                }
+            }
+            if (feed.ownLook) {
+                val look = Look.entries.firstOrNull { it.name == feed.look } ?: appLook
+                LookControls(
+                    look, feed.previewLines,
+                    onLook = { scope.launch { app.feeds.setLook(feed.id, true, it.name, feed.previewLines) } },
+                    onPreviewLines = { scope.launch { app.feeds.setLook(feed.id, true, look.name, it) } },
+                    sample = sample, sampleTime = sample?.let { timeOfDay(context, it.article.published) }.orEmpty(),
+                )
             }
         }
         // At once, with Undo (SPEC §8): the feed is gone for good when the snackbar goes without it

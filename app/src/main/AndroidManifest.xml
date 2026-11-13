@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- Telling "no network" from "the site did not answer". -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- The background refresh job stays scheduled across a restart of the phone. -->
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <!-- No storage, media, location or notification permission, ever. -->
 
     <application
@@ -31,6 +33,12 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!-- Refresh in the background: run by the system's job scheduler only. -->
+        <service
+            android:name=".refresh.RefreshJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
     </application>
 
 </manifest>

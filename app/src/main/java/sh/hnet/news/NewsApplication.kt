@@ -2,14 +2,21 @@ package sh.hnet.news
 
 import android.app.Application
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import sh.hnet.news.content.Blocks
+import sh.hnet.news.content.ImageStore
+import sh.hnet.news.data.ArticleDao
 import sh.hnet.news.data.FeedRepository
 import sh.hnet.news.data.NewsDatabase
 import sh.hnet.news.feed.FeedFinder
 import sh.hnet.news.feed.FeedIcons
 import sh.hnet.news.net.HttpFetcher
 import sh.hnet.news.net.SystemHttp
+import sh.hnet.news.refresh.RefreshJobService
+import sh.hnet.news.refresh.Refresher
 
 class NewsApplication : Application() {
     /** Work that outlives a screen; lives as long as the process. */
@@ -23,11 +30,47 @@ class NewsApplication : Application() {
 
     val icons: FeedIcons by lazy { FeedIcons(this, http) }
 
-    val feeds: FeedRepository by lazy { FeedRepository(NewsDatabase.get(this).feedDao(), icons, appScope) }
+    val images: ImageStore by lazy { ImageStore(this, http) }
+
+    private val database: NewsDatabase by lazy { NewsDatabase.get(this) }
+
+    val articles: ArticleDao by lazy { database.articleDao() }
+
+    val feeds: FeedRepository by lazy {
+        FeedRepository(database.feedDao(), icons, appScope).also {
+            it.onPurge = ::deleteArticles
+            it.onAdded = ::fetchFirst
+        }
+    }
+
+    val refresher: Refresher by lazy { Refresher(database.feedDao(), articles, http, images, preferences, appScope) }
 
     override fun onCreate() {
         super.onCreate()
-        // Feeds unsubscribed just before the process went, whose Undo can't come any more
-        appScope.launch { feeds.purgeRemoved() }
+        appScope.launch {
+            // Feeds unsubscribed just before the process went, whose Undo can't come any more
+            feeds.purgeRemoved()
+            // Articles a refresh was still fetching when the process went
+            articles.endFetching()
+            RefreshJobService.schedule(this@NewsApplication, preferences.refreshSettings())
+        }
+    }
+
+    /** The first fetch of feeds just subscribed, after the refresh under way if there is one. */
+    private fun fetchFirst(feedIds: List<Long>) {
+        appScope.launch {
+            refresher.current()?.join()
+            refresher.start(feedIds)
+        }
+    }
+
+    /** A feed's articles with their images, when the feed goes for good. */
+    private suspend fun deleteArticles(feedId: Long) {
+        val urls = articles.leadImages(feedId) + articles.contents(feedId).flatMap { content ->
+            Blocks.images(Blocks.decode(content.feed) + Blocks.decode(content.page)).map { it.url }
+        }
+        withContext(Dispatchers.IO) { images.delete(urls.toSet()) }
+        articles.deleteContents(feedId)
+        articles.deleteArticles(feedId)
     }
 }

@@ -5,6 +5,7 @@ import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import sh.hnet.news.NewsApplication
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import sh.hnet.news.BuildConfig
 import sh.hnet.news.R
@@ -18,7 +19,7 @@ import sh.hnet.news.ui.components.SettingsPage
  * join with their stages.
  */
 @Composable
-fun SettingsRootScreen(onBack: () -> Unit, onOpenFeeds: () -> Unit, onOpenLanguage: () -> Unit, onOpenReset: () -> Unit, onOpenAbout: () -> Unit) {
+fun SettingsRootScreen(onBack: () -> Unit, onOpenFeeds: () -> Unit, onOpenRefresh: () -> Unit, onOpenArticleList: () -> Unit, onOpenLanguage: () -> Unit, onOpenReset: () -> Unit, onOpenAbout: () -> Unit) {
     val context = LocalContext.current
     val version = BuildConfig.VERSION_NAME.removePrefix("v")
     // Read on every composition: changing it recreates the activity anyway
@@ -32,6 +33,19 @@ fun SettingsRootScreen(onBack: () -> Unit, onOpenFeeds: () -> Unit, onOpenLangua
             row { shapes ->
                 val summary = feeds?.let { stringResource(R.string.desc_feeds_summary, it.size, folders?.size ?: 0) }
                 SettingsNavigationRow(shapes, R.drawable.ic_rss_feed, stringResource(R.string.title_feeds), summary, onClick = onOpenFeeds)
+            }
+        }
+        SettingsGroup(stringResource(R.string.title_group_reading)) {
+            row { shapes ->
+                val refresh by app.preferences.refresh.collectAsStateWithLifecycle(null)
+                val summary = refresh?.let { stringResource(R.string.desc_refresh_background, intervalName(it.intervalHours).replaceFirstChar { c -> c.lowercase() }) }
+                SettingsNavigationRow(shapes, R.drawable.ic_refresh, stringResource(R.string.title_refresh), summary, onClick = onOpenRefresh)
+            }
+            row { shapes ->
+                val look by app.preferences.look.collectAsStateWithLifecycle(null)
+                val lines by app.preferences.previewLines.collectAsStateWithLifecycle(0)
+                val summary = look?.let { stringResource(R.string.desc_article_list, lookSummary(it), pluralStringResource(R.plurals.label_preview_lines, lines, lines)) }
+                SettingsNavigationRow(shapes, R.drawable.ic_list, stringResource(R.string.title_article_list), summary, onClick = onOpenArticleList)
             }
         }
         SettingsGroup(stringResource(R.string.title_settings_group_app)) {

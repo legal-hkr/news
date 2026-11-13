@@ -43,7 +43,12 @@ import androidx.navigation3.runtime.rememberNavBackStack
 import androidx.navigation3.ui.NavDisplay
 import sh.hnet.news.R
 import sh.hnet.news.about.WhatsNew
+import androidx.lifecycle.viewmodel.compose.viewModel
+import sh.hnet.news.NewsApplication
 import sh.hnet.news.ui.articles.ArticlesScreen
+import sh.hnet.news.ui.articles.ArticlesViewModel
+import sh.hnet.news.ui.settings.ArticleListSettingsScreen
+import sh.hnet.news.ui.settings.RefreshSettingsScreen
 import sh.hnet.news.ui.components.LocalSnackbarLift
 import sh.hnet.news.ui.feeds.AddFeedScreen
 import sh.hnet.news.ui.feeds.FeedScreen
@@ -64,6 +69,9 @@ import sh.hnet.news.ui.settings.WhatsNewScreen
 fun NewsApp() {
     val context = LocalContext.current
     val stack = rememberNavBackStack(Screen.Articles)
+    val app = context.applicationContext as NewsApplication
+    // The list and its filters outlive the pages opened over it
+    val articles: ArticlesViewModel = viewModel { ArticlesViewModel(app) }
     val snackbars = remember { SnackbarHostState() }
     // Outlives the page a message comes from (Unsubscribe closes its page before its snackbar ends)
     val scope = rememberCoroutineScope()
@@ -116,7 +124,7 @@ fun NewsApp() {
                 },
                 entryProvider = entryProvider<NavKey> {
                     entry<Screen.Articles> {
-                        ArticlesScreen(onOpenSettings = { open(Screen.Settings) }, onAddFeed = { open(Screen.AddFeed) }, snackbars = snackbars, messageScope = scope)
+                        ArticlesScreen(articles, onOpenSettings = { open(Screen.Settings) }, onAddFeed = { open(Screen.AddFeed) }, snackbars = snackbars, messageScope = scope)
                     }
                     entry<Screen.Feeds> {
                         CompositionLocalProvider(LocalSnackbarLift provides snackbarLift) {
@@ -145,11 +153,15 @@ fun NewsApp() {
                         SettingsRootScreen(
                             onBack = back,
                             onOpenFeeds = { open(Screen.Feeds) },
+                            onOpenRefresh = { open(Screen.SettingsRefresh) },
+                            onOpenArticleList = { open(Screen.SettingsArticleList) },
                             onOpenLanguage = { open(Screen.SettingsLanguage) },
                             onOpenReset = { open(Screen.SettingsReset) },
                             onOpenAbout = { open(Screen.SettingsAbout) },
                         )
                     }
+                    entry<Screen.SettingsRefresh> { RefreshSettingsScreen(onBack = back) }
+                    entry<Screen.SettingsArticleList> { ArticleListSettingsScreen(onBack = back) }
                     entry<Screen.SettingsLanguage> { LanguageScreen(onBack = back) }
                     entry<Screen.SettingsReset> { ResetScreen(onBack = back) }
                     entry<Screen.SettingsAbout> {
@@ -165,8 +177,9 @@ fun NewsApp() {
                     entry<Screen.SettingsLicenses> { LicensesScreen(onBack = back) }
                 },
             )
-            // One host for every page, above the system's navigation area
-            SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).navigationBarsPadding()) { data ->
+            // One host for every page, above the system's navigation area; on the list, above its floating toolbar too
+            val onList = stack.lastOrNull() == Screen.Articles
+            SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = if (onList) 88.dp else 0.dp)) { data ->
                 Snackbar(data, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.padding(horizontal = 12.dp).onSizeChanged { snackbarHeight = with(density) { it.height.toDp() } })
             }
         }

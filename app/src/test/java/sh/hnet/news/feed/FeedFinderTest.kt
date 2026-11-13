@@ -10,6 +10,7 @@ import org.junit.Test
 import sh.hnet.news.net.FetchFailure
 import sh.hnet.news.net.HttpFetcher
 import sh.hnet.news.net.HttpResponse
+import sh.hnet.news.net.Validators
 import sh.hnet.news.net.failureOf
 import sh.hnet.news.net.parseContentType
 
@@ -20,7 +21,7 @@ class FeedFinderTest {
     private class Web(private val pages: Map<String, Any>) : HttpFetcher {
         val asked = mutableListOf<String>()
 
-        override suspend fun get(url: String, maxBytes: Int): HttpResponse {
+        override suspend fun get(url: String, maxBytes: Int, validators: Validators?): HttpResponse {
             asked += url
             return when (val page = pages[url]) {
                 is String -> HttpResponse(url, null, null, page.toByteArray())

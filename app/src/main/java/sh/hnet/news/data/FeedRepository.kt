@@ -19,6 +19,12 @@ class DeletedFolder(val folder: Folder, val feedIds: List<Long>)
 
 /** The subscriptions and their folders: everything Settings › Feeds, Add a feed and a feed's page change. */
 class FeedRepository(private val dao: FeedDao, private val icons: FeedIcons, private val scope: CoroutineScope) {
+    /** Removes what else belongs to a feed that goes for good (its articles); set by the application. */
+    var onPurge: suspend (Long) -> Unit = {}
+
+    /** Fetches the feeds just subscribed for the first time (SPEC §7.2, §9); set by the application. */
+    var onAdded: (List<Long>) -> Unit = {}
+
     val feeds: Flow<List<Feed>> = dao.observeFeeds()
     val folders: Flow<List<Folder>> = dao.observeFolders()
 
@@ -40,6 +46,7 @@ class FeedRepository(private val dao: FeedDao, private val icons: FeedIcons, pri
         val folder = newFolder?.let { folderNamed(it) } ?: folderId
         val id = dao.insert(Feed(url = url, title = title, siteUrl = siteUrl, folderId = folder, position = nextPosition(), fullPage = fullPage, addedAt = System.currentTimeMillis()))
         fetchIcon(id, url, siteUrl, iconUrl)
+        onAdded(listOf(id))
         return id
     }
 
@@ -64,7 +71,9 @@ class FeedRepository(private val dao: FeedDao, private val icons: FeedIcons, pri
 
     suspend fun moveToNewFolder(id: Long, name: String) = dao.setFolder(id, folderNamed(name))
 
-    suspend fun setFullPage(id: Long, fullPage: Boolean) = dao.setFullPage(id, fullPage)
+    suspend fun setFullPage(id: Long, fullPage: Boolean) = dao.chooseContent(id, fullPage)
+
+    suspend fun setLook(id: Long, own: Boolean, look: String?, previewLines: Int) = dao.setLook(id, own, look, previewLines)
 
     suspend fun setStoreImages(id: Long, on: Boolean) = dao.setStoreImages(id, on)
 
@@ -78,6 +87,7 @@ class FeedRepository(private val dao: FeedDao, private val icons: FeedIcons, pri
     suspend fun purge(id: Long) {
         // Taken back meanwhile?
         if (dao.feed(id)?.removedAt == null) return
+        onPurge(id)
         dao.delete(id)
         withContext(Dispatchers.IO) { icons.delete(id) }
     }
@@ -114,16 +124,17 @@ class FeedRepository(private val dao: FeedDao, private val icons: FeedIcons, pri
     suspend fun import(plan: ImportPlan): Int {
         purgeRemoved()
         var position = nextPosition()
-        var added = 0
+        val added = mutableListOf<Long>()
         for (entry in plan.new) {
             // Checked again: the file may be imported twice in a row
             if (subscribed(entry.xmlUrl) != null) continue
             val folder = entry.folder?.let { folderNamed(it) }
-            val id = dao.insert(Feed(url = entry.xmlUrl, title = entry.title, siteUrl = entry.htmlUrl, folderId = folder, position = position++, addedAt = System.currentTimeMillis()))
+            val id = dao.insert(Feed(url = entry.xmlUrl, title = entry.title, siteUrl = entry.htmlUrl, folderId = folder, position = position++, addedAt = System.currentTimeMillis(), contentChosen = false))
             fetchIcon(id, entry.xmlUrl, entry.htmlUrl, null)
-            added++
+            added += id
         }
-        return added
+        if (added.isNotEmpty()) onAdded(added)
+        return added.size
     }
 
     /** Every feed with its folder's name, by folder and name, for the OPML export. */

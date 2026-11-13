@@ -18,6 +18,28 @@
     <string name="title_articles">Artykuły</string>
     <string name="msg_empty_no_feeds">Nie ma jeszcze kanałów.</string>
     <string name="msg_empty_no_articles">Brak artykułów.</string>
+    <string name="msg_empty_all_read">Wszystko przeczytane.</string>
+    <string name="content_description_refresh">Odśwież</string>
+    <string name="msg_refreshing">Odświeżanie (%1$d z %2$d)</string>
+    <string name="msg_refreshing_one">Odświeżanie…</string>
+    <string name="msg_first_refresh">Pobieranie pierwszych artykułów (%1$d z %2$d)</string>
+    <string name="msg_refreshed">Odświeżono: %1$s, nowe: %2$d</string>
+    <string name="msg_no_network_refreshed">Brak sieci. Odświeżono: %s</string>
+    <string name="label_today">Dzisiaj</string>
+    <string name="label_yesterday">Wczoraj</string>
+    <string name="label_unread">Nieprzeczytany</string>
+    <string name="label_read">Przeczytany</string>
+    <string name="label_fetching">Pobieranie</string>
+    <string name="label_incomplete">Niepełny</string>
+    <string name="button_new_articles">Nowe artykuły (%s)</string>
+    <string name="title_source">Źródło</string>
+    <string name="content_description_source">Źródło: %s</string>
+    <string name="label_source_all">Wszystkie</string>
+    <string name="content_description_show_feeds">Pokaż kanały folderu %s</string>
+    <string name="content_description_hide_feeds">Ukryj kanały folderu %s</string>
+    <string name="tooltip_unread_only">Tylko nieprzeczytane</string>
+    <string name="content_description_mark_all_read">Oznacz wszystkie jako przeczytane</string>
+    <string name="msg_marked_read">Oznaczono jako przeczytane: %d</string>
 
     <!-- Feeds (Settings › Feeds, Add a feed, a feed's page) -->
     <string name="title_feeds">Kanały</string>
@@ -37,12 +59,12 @@
     <string name="label_address">Adres</string>
     <string name="hint_address">Adres kanału albo strony.</string>
     <string name="button_find_feed">Znajdź kanał</string>
-    <string name="msg_looking">Szukanie…</string>
+    <string name="msg_looking">Wyszukiwanie…</string>
     <string name="title_feeds_found">Znalezione kanały (%d)</string>
     <string name="button_continue">Dalej</string>
     <string name="error_no_feed_found">Pod tym adresem nie ma kanału.</string>
     <string name="error_no_network">Brak sieci.</string>
-    <string name="error_refused_or_login">Strona odrzuca aplikację albo wymaga logowania.</string>
+    <string name="error_refused_or_login">Strona blokuje aplikację albo wymaga logowania.</string>
     <string name="error_site_no_answer">Strona nie odpowiedziała.</string>
     <string name="msg_already_subscribed"><![CDATA[Już w subskrypcjach: <b>%s</b>]]></string>
     <string name="msg_already_subscribed_plain">Już w subskrypcjach: %s</string>
@@ -57,9 +79,9 @@
     <string name="label_full_page">Pełna strona</string>
     <string name="desc_full_page">Aplikacja pobiera stronę każdego artykułu.</string>
     <string name="label_feed_content">Treść z kanału</string>
-    <string name="desc_feed_content">To, co wysyła kanał.</string>
-    <string name="msg_recommend_full_page">Ten kanał wysyła tylko zajawki. Zalecana jest pełna strona.</string>
-    <string name="msg_feed_sends_full_text">Ten kanał wysyła pełną treść.</string>
+    <string name="desc_feed_content">To, co udostępnia kanał.</string>
+    <string name="msg_recommend_full_page">Ten kanał udostępnia tylko skróty artykułów. Zalecana jest opcja „Pełna strona”.</string>
+    <string name="msg_feed_sends_full_text">Ten kanał udostępnia pełną treść artykułów.</string>
     <string name="button_subscribe">Subskrybuj</string>
     <string name="msg_subscribed">Dodano subskrypcję: %s</string>
     <string name="title_feed">Kanał</string>
@@ -85,13 +107,60 @@
     <string name="title_settings_group_app">Aplikacja</string>
     <string name="title_settings_group_data">Dane</string>
 
+    <string name="title_group_reading">Czytanie</string>
+
+    <!-- Settings › Refresh -->
+    <string name="title_refresh">Odświeżanie</string>
+    <string name="desc_refresh_background">W tle: %s</string>
+    <string name="label_in_the_background">W tle</string>
+    <string name="label_refresh_off">Wyłączone</string>
+    <string name="label_every_hour">Co godzinę</string>
+    <plurals name="label_every_n_hours">
+        <item quantity="one">Co %d godzinę</item>
+        <item quantity="few">Co %d godziny</item>
+        <item quantity="many">Co %d godzin</item>
+        <item quantity="other">Co %d godziny</item>
+    </plurals>
+    <string name="label_once_a_day">Raz dziennie</string>
+    <string name="label_unmetered_only">Tylko w sieciach bez limitu danych</string>
+    <string name="label_charging_only">Tylko podczas ładowania</string>
+    <string name="label_refresh_on_open">Odświeżaj po otwarciu aplikacji</string>
+    <string name="msg_refresh_note">Dokładny moment wybiera Android. Odświeżenie może nastąpić później, niż ustawiono.</string>
+
+    <!-- Settings › Article list, and a feed's own look -->
+    <string name="title_article_list">Lista artykułów</string>
+    <string name="desc_article_list">Wygląd: %1$s, podgląd: %2$s</string>
+    <string name="title_look_of_articles">Wygląd artykułów</string>
+    <string name="title_on_the_list">Na liście artykułów</string>
+    <string name="label_look_as_in_app">Jak w aplikacji</string>
+    <string name="desc_look_as_in_app">Ustawienia › Lista artykułów</string>
+    <string name="label_look">Wygląd</string>
+    <string name="label_look_text">Tekst</string>
+    <string name="label_look_thumbnail">Miniatura</string>
+    <string name="label_look_large">Duży obraz</string>
+    <string name="label_look_text_value">tekst</string>
+    <string name="label_look_thumbnail_value">miniatura</string>
+    <string name="label_look_large_value">duży obraz</string>
+    <string name="label_preview_text">Podgląd tekstu</string>
+    <plurals name="label_preview_lines">
+        <item quantity="one">%d wiersz</item>
+        <item quantity="few">%d wiersze</item>
+        <item quantity="many">%d wierszy</item>
+        <item quantity="other">%d wiersza</item>
+    </plurals>
+    <string name="title_sample">Przykład</string>
+    <string name="msg_feed_own_look">Kanał może mieć własny wygląd. Można go ustawić w ustawieniach kanału.</string>
+    <string name="label_order">Kolejność</string>
+    <string name="label_newest_first">Od najnowszych</string>
+    <string name="label_oldest_first">Od najstarszych</string>
+
     <!-- Settings › Language -->
     <string name="title_settings_language">Język</string>
     <string name="language_system_default">Domyślny systemowy</string>
 
     <!-- Settings › Reset -->
     <string name="title_settings_reset">Resetowanie</string>
-    <string name="desc_settings_reset_row">Kanały i zapisane artykuły zostają</string>
+    <string name="desc_settings_reset_row">Kanały i zapisane artykuły pozostają bez zmian</string>
     <string name="desc_settings_reset">Wszystkie ustawienia wrócą do domyślnych, a język będzie zgodny z systemem. Kanały i zapisane artykuły pozostaną bez zmian.</string>
     <string name="button_restore_defaults">Przywróć ustawienia domyślne</string>
     <string name="title_confirm_restore_defaults">Przywrócić ustawienia domyślne?</string>
@@ -115,5 +184,5 @@
     <string name="label_licenses">Licencje open source</string>
     <string name="desc_licenses">Składniki open source użyte w aplikacji</string>
     <string name="title_about_source">Kod źródłowy</string>
-    <string name="msg_about_privacy">Newsy łączą się tylko ze stronami subskrybowanych kanałów: pobierają kanały, strony artykułów i obrazy. Nic innego nie opuszcza telefonu. Bez konta, bez analityki, bez innych usług.</string>
+    <string name="msg_about_privacy">Aplikacja łączy się tylko ze stronami subskrybowanych kanałów: pobiera kanały, strony artykułów i obrazy. Nic innego nie opuszcza telefonu. Bez konta, bez analityki, bez innych usług.</string>
 </resources>

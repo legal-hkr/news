@@ -33,17 +33,17 @@ class SystemHttp(private val context: Context) : HttpFetcher {
     }
     private val executor = Executors.newCachedThreadPool()
 
-    override suspend fun get(url: String, maxBytes: Int): HttpResponse {
+    override suspend fun get(url: String, maxBytes: Int, validators: Validators?): HttpResponse {
         // Asked first: without a network the engine's own error doesn't always say so
         if (context.getSystemService(ConnectivityManager::class.java).activeNetwork == null) throw FetchFailure.NoNetwork()
         return try {
-            withTimeout(TIMEOUT_MS) { request(url, maxBytes) }
+            withTimeout(TIMEOUT_MS) { request(url, maxBytes, validators) }
         } catch (e: TimeoutCancellationException) {
             throw FetchFailure.NoAnswer("Timed out", e)
         }
     }
 
-    private suspend fun request(url: String, maxBytes: Int): HttpResponse = suspendCancellableCoroutine { continuation ->
+    private suspend fun request(url: String, maxBytes: Int, validators: Validators?): HttpResponse = suspendCancellableCoroutine { continuation ->
         val body = ByteArrayOutputStream()
         val callback = object : UrlRequest.Callback {
             override fun onRedirectReceived(request: UrlRequest, info: UrlResponseInfo, newLocationUrl: String) {
@@ -80,9 +80,17 @@ class SystemHttp(private val context: Context) : HttpFetcher {
                     continuation.resumeWithException(failure)
                     return
                 }
-                val header = info.headers.asMap.entries.firstOrNull { it.key.equals("content-type", ignoreCase = true) }?.value?.firstOrNull()
-                val (type, charset) = parseContentType(header)
-                continuation.resume(HttpResponse(info.url, type, charset, body.toByteArray()))
+                fun header(name: String) = info.headers.asMap.entries.firstOrNull { it.key.equals(name, ignoreCase = true) }?.value?.firstOrNull()
+                val (type, charset) = parseContentType(header("content-type"))
+                val unchanged = info.httpStatusCode == 304
+                continuation.resume(
+                    HttpResponse(
+                        info.url, type, charset, if (unchanged) ByteArray(0) else body.toByteArray(),
+                        etag = header("etag") ?: validators?.etag.takeIf { unchanged },
+                        lastModified = header("last-modified") ?: validators?.lastModified.takeIf { unchanged },
+                        notModified = unchanged,
+                    ),
+                )
             }
 
             override fun onFailed(request: UrlRequest, info: UrlResponseInfo?, error: HttpException) {
@@ -99,6 +107,10 @@ class SystemHttp(private val context: Context) : HttpFetcher {
         val request = try {
             engine.newUrlRequestBuilder(url, executor, callback)
                 .addHeader("Accept", ACCEPT)
+                .apply {
+                    validators?.etag?.let { addHeader("If-None-Match", it) }
+                    validators?.lastModified?.let { addHeader("If-Modified-Since", it) }
+                }
                 .build()
         } catch (e: IllegalArgumentException) {
             // Not an address the engine can ask for

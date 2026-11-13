@@ -11,6 +11,8 @@ sealed interface Screen : NavKey {
     @Serializable data object Feeds : Screen
     @Serializable data object AddFeed : Screen
     @Serializable data class Feed(val id: Long) : Screen
+    @Serializable data object SettingsRefresh : Screen
+    @Serializable data object SettingsArticleList : Screen
     @Serializable data object SettingsLanguage : Screen
     @Serializable data object SettingsReset : Screen
     @Serializable data object SettingsAbout : Screen

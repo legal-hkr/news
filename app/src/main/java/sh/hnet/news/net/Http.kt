@@ -9,7 +9,15 @@ class HttpResponse(
     /** The charset the site named, if any. */
     val charset: String?,
     val body: ByteArray,
+    /** Validators to send with the next request for this address. */
+    val etag: String? = null,
+    val lastModified: String? = null,
+    /** The site answered 304: nothing changed since the validators sent; [body] is empty. */
+    val notModified: Boolean = false,
 )
+
+/** What the last answer of an address gave, sent back so that an unchanged document is not sent again. */
+class Validators(val etag: String?, val lastModified: String?)
 
 /** Why a fetch failed, as the UI names it (SPEC §10.4). */
 sealed class FetchFailure(message: String, cause: Throwable? = null) : Exception(message, cause) {
@@ -24,12 +32,15 @@ sealed class FetchFailure(message: String, cause: Throwable? = null) : Exception
 }
 
 /** Fetches one address. An interface so that the logic above it runs in JVM tests. */
-fun interface HttpFetcher {
+interface HttpFetcher {
     /**
      * @param maxBytes A larger answer is a failure, not a truncated body
+     * @param validators Makes the request conditional
      * @throws FetchFailure For every failure, an HTTP status of 400 and above among them
      */
-    suspend fun get(url: String, maxBytes: Int): HttpResponse
+    suspend fun get(url: String, maxBytes: Int, validators: Validators?): HttpResponse
+
+    suspend fun get(url: String, maxBytes: Int): HttpResponse = get(url, maxBytes, null)
 }
 
 object HttpLimits {
@@ -40,7 +51,7 @@ object HttpLimits {
 
 /** The failure an HTTP status means, or null for success. */
 fun failureOf(status: Int): FetchFailure? = when (status) {
-    in 200..299 -> null
+    in 200..299, 304 -> null
     404, 410 -> FetchFailure.NotFound(status)
     401, 403, 407, 429, 451 -> FetchFailure.Refused(status)
     else -> FetchFailure.NoAnswer("HTTP $status")

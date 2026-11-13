@@ -52,6 +52,24 @@ interface FeedDao {
     @Query("DELETE FROM feed WHERE id = :id")
     suspend fun delete(id: Long)
 
+    @Query("UPDATE feed SET fullPage = :fullPage, contentChosen = 1 WHERE id = :id")
+    suspend fun chooseContent(id: Long, fullPage: Boolean)
+
+    @Query("UPDATE feed SET refreshedAt = :at, lastNew = :new, etag = :etag, lastModified = :lastModified, lastError = NULL, failingSince = NULL, failedAttempts = 0 WHERE id = :id")
+    suspend fun setRefreshed(id: Long, at: Long, new: Int, etag: String?, lastModified: String?)
+
+    @Query("UPDATE feed SET lastError = :error, failingSince = COALESCE(failingSince, :at), failedAttempts = failedAttempts + 1 WHERE id = :id")
+    suspend fun setFailed(id: Long, error: String, at: Long)
+
+    @Query("UPDATE feed SET lastError = :error WHERE id = :id")
+    suspend fun setLastError(id: Long, error: String)
+
+    @Query("UPDATE feed SET siteUrl = :siteUrl WHERE id = :id AND siteUrl IS NULL")
+    suspend fun setSiteUrlIfNone(id: Long, siteUrl: String)
+
+    @Query("UPDATE feed SET ownLook = :own, look = :look, previewLines = :previewLines WHERE id = :id")
+    suspend fun setLook(id: Long, own: Boolean, look: String?, previewLines: Int)
+
     @Query("SELECT * FROM folder")
     fun observeFolders(): Flow<List<Folder>>
 

@@ -1,0 +1,157 @@
+package sh.hnet.news.content
+
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import org.jsoup.Jsoup
+import org.jsoup.nodes.Document
+import org.jsoup.nodes.Element
+import java.io.ByteArrayInputStream
+
+/** What was cut out of an article's page. */
+class Extracted(val blocks: List<Block>, val leadImage: String?)
+
+/**
+ * Finds the article in its web page ("Full page", SPEC §5 of the brief). Our own take on the
+ * well-known approach of scoring containers by the text of their paragraphs: what is clearly not
+ * the article goes first (navigation, forms, comment and sharing boxes), then every paragraph gives
+ * points to its parent and grandparent, link-heavy containers lose theirs, and the best container
+ * is the article. Pages built by scripts often carry the text as structured data instead, which is
+ * the fallback. Failure is null: the feed's own content is always there to show.
+ */
+object Extractor {
+    /** Less text than this is a teaser, a paywall notice or an error page, not an article. */
+    private const val MIN_TEXT = 250
+
+    private val negative = Regex("""comment|disqus|share|sharing|social|related|sidebar|promo|advert|adsense|ad-slot|adslot|banner|newsletter|subscri|cookie|consent|popup|modal|breadcrumb|pagination|pager|widget|recommend|outbrain|taboola|sponsor|paywall|toolbar|masthead|menu|navbar|footer|byline|author-box|tags|print|hidden|skip-link""", RegexOption.IGNORE_CASE)
+    private val keep = Regex("""article|body|content|entry|main|post|story|text|column""", RegexOption.IGNORE_CASE)
+    private val positive = Regex("""article|body|content|entry|hentry|main|page|post|text|blog|story|lead""", RegexOption.IGNORE_CASE)
+    private val protectedTags = setOf("html", "body", "article", "main")
+
+    fun extract(body: ByteArray, charset: String?, url: String): Extracted? =
+        extract(Jsoup.parse(ByteArrayInputStream(body), charset?.takeIf { supported(it) }, url))
+
+    fun extract(html: String, url: String): Extracted? = extract(Jsoup.parse(html, url))
+
+    private fun extract(document: Document): Extracted? {
+        val lead = (document.selectFirst("meta[property=og:image]") ?: document.selectFirst("meta[name=twitter:image]"))?.absUrl("content")?.takeIf { it.startsWith("http", ignoreCase = true) }
+        val structured = structuredBody(document)
+        val title = document.selectFirst("h1")?.text()?.trim()
+        document.select("script, style, noscript, template, nav, aside, footer, form, button, input, select, textarea, svg, dialog, [hidden], [aria-hidden=true]").remove()
+        document.body().allElements.filter { it.parent() != null && unlikely(it) }.forEach { it.remove() }
+
+        val candidate = best(document)
+        var blocks = candidate?.let { clean(it, title); HtmlBlocks.convert(it) }.orEmpty()
+        if (Blocks.text(blocks).length < MIN_TEXT) {
+            // Structured data: plain text, one paragraph a line
+            blocks = structured?.split(Regex("""\n+"""))?.map { it.trim() }?.filter { it.isNotEmpty() }?.map { Block.Paragraph(RichText(it)) }.orEmpty()
+        }
+        if (Blocks.text(blocks).length < MIN_TEXT) return null
+        return Extracted(blocks, lead)
+    }
+
+    private fun label(element: Element): String = element.className() + " " + element.id()
+
+    /** Containers that hold an article whatever their own name says (a "paywall wrapper" around the article's body). */
+    private const val ARTICLE_INSIDE = "article, [itemprop=articleBody], [class*=articleBody], [class*=article-body], [class*=article--content], [class*=article__body], [class*=post-content], [class*=entry-content]"
+
+    private fun unlikely(element: Element): Boolean {
+        if (element.normalName() in protectedTags) return false
+        val label = label(element)
+        if (label.isBlank() || !negative.containsMatchIn(label) || keep.containsMatchIn(label)) return false
+        return element.selectFirst(ARTICLE_INSIDE) == null
+    }
+
+    /** The length of the paragraphs' text inside: what an article is made of, as opposed to menus and captions. */
+    private fun paragraphText(element: Element): Int = element.select("p, pre, blockquote").sumOf { p -> p.ownText().length + p.children().filter { it.normalName() !in setOf("p", "pre", "blockquote") }.sumOf { it.text().length } }
+
+    private fun linkDensity(element: Element): Float {
+        val length = element.text().length
+        if (length == 0) return 0f
+        return element.select("a").sumOf { it.text().length }.toFloat() / length
+    }
+
+    private fun best(document: Document): Element? {
+        val scores = HashMap<Element, Float>()
+        fun base(element: Element): Float {
+            var score = when (element.normalName()) {
+                "article" -> 10f
+                "div", "section", "main" -> 5f
+                "pre", "td", "blockquote" -> 3f
+                "ul", "ol", "li", "dl", "dd", "dt", "address" -> -3f
+                "h1", "h2", "h3", "h4", "h5", "h6", "th", "header" -> -5f
+                else -> 0f
+            }
+            val label = label(element)
+            if (label.isNotBlank()) {
+                if (positive.containsMatchIn(label)) score += 25f
+                if (negative.containsMatchIn(label)) score -= 25f
+            }
+            return score
+        }
+        for (paragraph in document.select("p, pre, td, blockquote")) {
+            val text = paragraph.text()
+            if (text.length < 25) continue
+            val points = 1f + text.count { it == ',' } + minOf(text.length / 100, 3)
+            val parent = paragraph.parent() ?: continue
+            scores[parent] = (scores[parent] ?: base(parent)) + points
+            parent.parent()?.let { grand -> scores[grand] = (scores[grand] ?: base(grand)) + points / 2 }
+        }
+        // Paragraphs made of line breaks inside one div have no <p> to count
+        if (scores.isEmpty()) return document.selectFirst("article") ?: document.selectFirst("main") ?: document.body()
+        var top = scores.maxByOrNull { (element, score) -> score * (1 - linkDensity(element)) }?.key ?: return null
+        // An article split over several containers (pages cut it for an ad or a box in the middle): an ancestor
+        // holding clearly more paragraph text than the best container is the better cut. Comments, sidebars and
+        // footers are gone by now, so what an ancestor adds is mostly the rest of the article.
+        var held = paragraphText(top)
+        var parent = top.parent()
+        while (parent != null && parent.normalName() != "html") {
+            val wider = paragraphText(parent)
+            if (wider >= held * 1.2f && linkDensity(parent) < 0.35f) {
+                top = parent
+                held = wider
+            }
+            parent = parent.parent()
+        }
+        return top
+    }
+
+    /** Inside the article: boxes of links (related stories, tags), leftovers by name, and the title the reader shows itself. */
+    private fun clean(candidate: Element, title: String?) {
+        candidate.select("div, section, ul, ol, table, p").filter { element ->
+            val text = element.text()
+            element.parent() != null && text.isNotEmpty() && element.selectFirst("img, picture, figure, pre, blockquote") == null &&
+                ((linkDensity(element) > 0.6f && element.select("a").size > 1) || (element.normalName() != "p" && text.length < 25 && element.select("a").size == 1 && linkDensity(element) > 0.9f))
+        }.forEach { it.remove() }
+        if (title != null) candidate.select("h1, h2").firstOrNull { it.text().trim().equals(title, ignoreCase = true) }?.remove()
+        candidate.select("header").filter { it.selectFirst("p, img, figure") == null }.forEach { it.remove() }
+    }
+
+    /** `articleBody` of a schema.org article in the page's JSON-LD, if it carries one. */
+    private fun structuredBody(document: Document): String? {
+        for (script in document.select("script[type=application/ld+json]")) {
+            val root = try {
+                Json.parseToJsonElement(script.data())
+            } catch (_: Exception) {
+                continue
+            }
+            find(root)?.let { return it }
+        }
+        return null
+    }
+
+    private fun find(element: JsonElement): String? = when (element) {
+        is JsonObject -> (element["articleBody"] as? JsonPrimitive)?.takeIf { it.isString }?.content?.takeIf { it.length >= MIN_TEXT }
+            ?: element.values.firstNotNullOfOrNull { find(it) }
+        is JsonArray -> element.firstNotNullOfOrNull { find(it) }
+        else -> null
+    }
+
+    private fun supported(charset: String): Boolean = try {
+        java.nio.charset.Charset.isSupported(charset)
+    } catch (_: IllegalArgumentException) {
+        false
+    }
+}
