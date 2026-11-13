@@ -7,4 +7,6 @@ import kotlinx.coroutines.SupervisorJob
 class NewsApplication : Application() {
     /** Work that outlives a screen; lives as long as the process. */
     val appScope = CoroutineScope(SupervisorJob())
+
+    val preferences: Preferences by lazy { Preferences(this) }
 }

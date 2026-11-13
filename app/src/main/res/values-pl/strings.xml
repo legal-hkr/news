@@ -1,4 +1,55 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Newsy</string>
+
+    <!-- Common -->
+    <string name="button_cancel">Anuluj</string>
+    <string name="button_close">Zamknij</string>
+    <string name="button_copy">Kopiuj</string>
+    <string name="button_restore">Przywróć</string>
+    <string name="content_description_back">Wstecz</string>
+    <string name="msg_copied">Skopiowano</string>
+    <string name="msg_no_browser">Brak aplikacji, która otworzy ten link</string>
+
+    <!-- Articles -->
+    <string name="title_articles">Artykuły</string>
+    <string name="msg_empty_no_feeds">Nie ma jeszcze kanałów.</string>
+
+    <!-- Settings -->
+    <string name="title_settings">Ustawienia</string>
+    <string name="content_description_settings">Ustawienia</string>
+    <string name="title_settings_group_app">Aplikacja</string>
+    <string name="title_settings_group_data">Dane</string>
+
+    <!-- Settings › Language -->
+    <string name="title_settings_language">Język</string>
+    <string name="language_system_default">Domyślny systemowy</string>
+
+    <!-- Settings › Reset -->
+    <string name="title_settings_reset">Resetowanie</string>
+    <string name="desc_settings_reset_row">Kanały i zapisane artykuły zostają</string>
+    <string name="desc_settings_reset">Wszystkie ustawienia wrócą do domyślnych, a język będzie zgodny z systemem. Kanały i zapisane artykuły pozostaną bez zmian.</string>
+    <string name="button_restore_defaults">Przywróć ustawienia domyślne</string>
+    <string name="title_confirm_restore_defaults">Przywrócić ustawienia domyślne?</string>
+    <string name="msg_confirm_restore_defaults">Wszystkie ustawienia wrócą do domyślnych, a język będzie zgodny z systemem. Kanały i zapisane artykuły pozostaną bez zmian.</string>
+    <string name="msg_defaults_restored">Przywrócono ustawienia domyślne</string>
+
+    <!-- Settings › About -->
+    <string name="title_settings_about">O aplikacji</string>
+    <string name="label_version_value">Wersja %s</string>
+    <string name="whats_new_title">Co nowego</string>
+    <string name="whats_new_badge">Nowe</string>
+    <plurals name="whats_new_row_supporting">
+        <item quantity="one">Wersja %1$s, %2$d zmiana</item>
+        <item quantity="few">Wersja %1$s, %2$d zmiany</item>
+        <item quantity="many">Wersja %1$s, %2$d zmian</item>
+        <item quantity="other">Wersja %1$s, %2$d zmiany</item>
+    </plurals>
+    <string name="whats_new_updated_snackbar">Zaktualizowano do wersji %1$s</string>
+    <string name="title_about_license">Licencja</string>
+    <string name="msg_license_english_only">Wiążący jest wyłącznie oryginalny tekst w języku angielskim.</string>
+    <string name="label_licenses">Licencje open source</string>
+    <string name="desc_licenses">Składniki open source użyte w aplikacji</string>
+    <string name="title_about_source">Kod źródłowy</string>
+    <string name="msg_about_privacy">Newsy łączą się tylko ze stronami subskrybowanych kanałów: pobierają kanały, strony artykułów i obrazy. Nic innego nie opuszcza telefonu. Bez konta, bez analityki, bez innych usług.</string>
 </resources>

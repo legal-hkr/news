@@ -1,1 +1,4 @@
-In development.
+v0.1.0
+
+In development:
+- The article list’s frame and the first settings pages
