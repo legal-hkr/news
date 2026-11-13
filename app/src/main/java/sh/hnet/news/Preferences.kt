@@ -49,6 +49,8 @@ data class LastRefresh(val at: Long, val new: Int, val offline: Boolean)
 
 val REFRESH_INTERVALS = listOf(0, 1, 3, 6, 12, 24)
 const val MAX_PREVIEW_LINES = 3
+/** The reader's text sizes in percent (SPEC §5.5). */
+val TEXT_SIZES = listOf(85, 100, 115, 130, 150)
 
 /** Choices the user made in the UI that outlive the process (app-private, not backed up by the system). Every stage adds its settings here. */
 class Preferences(private val context: Context) {
@@ -56,6 +58,9 @@ class Preferences(private val context: Context) {
     private val unreadOnlyKey = booleanPreferencesKey("unread_only")
     private val oldestFirstKey = booleanPreferencesKey("oldest_first")
     private val ownOrderKey = booleanPreferencesKey("own_feed_order")
+    private val textSizeKey = intPreferencesKey("reader_text_size")
+    private val serifKey = booleanPreferencesKey("reader_serif")
+    private val markOnScrollKey = booleanPreferencesKey("mark_read_on_scroll")
     private val lookKey = stringPreferencesKey("look")
     private val previewLinesKey = intPreferencesKey("preview_lines")
     private val intervalKey = intPreferencesKey("refresh_interval_hours")
@@ -83,6 +88,20 @@ class Preferences(private val context: Context) {
     val ownOrder: Flow<Boolean> = context.settings.data.map { it[ownOrderKey] ?: false }.distinctUntilChanged()
 
     suspend fun setOwnOrder(on: Boolean) = context.settings.edit { it[ownOrderKey] = on }
+
+    /** The reader's text size in percent, one of [TEXT_SIZES] (SPEC §5.5). */
+    val textSize: Flow<Int> = context.settings.data.map { prefs -> (prefs[textSizeKey] ?: 100).takeIf { it in TEXT_SIZES } ?: 100 }.distinctUntilChanged()
+
+    suspend fun setTextSize(percent: Int) = context.settings.edit { it[textSizeKey] = percent }
+
+    val serif: Flow<Boolean> = context.settings.data.map { it[serifKey] ?: false }.distinctUntilChanged()
+
+    suspend fun setSerif(on: Boolean) = context.settings.edit { it[serifKey] = on }
+
+    /** A row is marked read when it leaves the list's top edge during a scroll by the user (SPEC §4.7). */
+    val markOnScroll: Flow<Boolean> = context.settings.data.map { it[markOnScrollKey] ?: false }.distinctUntilChanged()
+
+    suspend fun setMarkOnScroll(on: Boolean) = context.settings.edit { it[markOnScrollKey] = on }
 
     /** The app's default look of rows; a feed can have its own (SPEC §4.10). */
     val look: Flow<Look> = context.settings.data.map { prefs -> Look.entries.firstOrNull { it.name == prefs[lookKey] } ?: Look.THUMBNAIL }.distinctUntilChanged()

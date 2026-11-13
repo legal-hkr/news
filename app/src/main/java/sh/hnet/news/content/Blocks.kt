@@ -87,5 +87,15 @@ object Blocks {
         }
     }
 
+    /** The same blocks without the images of [urls]. */
+    fun withoutImages(blocks: List<Block>, urls: Set<String>): List<Block> = if (urls.isEmpty()) blocks else blocks.mapNotNull { block ->
+        when (block) {
+            is Block.Image -> block.takeIf { it.url !in urls }
+            is Block.Quote -> block.copy(blocks = withoutImages(block.blocks, urls))
+            is Block.ItemList -> block.copy(items = block.items.map { withoutImages(it, urls) })
+            else -> block
+        }
+    }
+
     fun words(blocks: List<Block>): Int = text(blocks).split(Regex("""\s+""")).count { it.isNotEmpty() }
 }

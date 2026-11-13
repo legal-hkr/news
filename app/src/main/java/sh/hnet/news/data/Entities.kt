@@ -57,6 +57,8 @@ data class Feed(
     @ColumnInfo(defaultValue = "0") val ownLook: Boolean = false,
     val look: String? = null,
     @ColumnInfo(defaultValue = "0") val previewLines: Int = 0,
+    /** The language the feed names for itself (a tag such as "pl" or "en-US"), for hyphenation in the reader (SPEC §5.4). */
+    val language: String? = null,
 )
 
 /** An article of a feed, without its body: what the list shows. */
@@ -82,7 +84,20 @@ data class Article(
     val state: Int = ArticleState.COMPLETE,
     /** Words of the text shown, for the reading time. */
     val words: Int = 0,
+    /** Where reading stopped (SPEC §5.9): the reader's first visible item and its offset; 0 and 0 for the top. */
+    @ColumnInfo(defaultValue = "0") val readIndex: Int = 0,
+    @ColumnInfo(defaultValue = "0") val readOffset: Int = 0,
+    /** The version chosen for this article alone ([ArticleVersion] by number, SPEC §5.8). */
+    @ColumnInfo(defaultValue = "0") val version: Int = 0,
 )
+
+/** Which of an article's two bodies the reader shows. */
+object ArticleVersion {
+    /** The full page when it is on the phone, else the feed's content. */
+    const val DEFAULT = 0
+    const val FEED = 1
+    const val PAGE = 2
+}
 
 /** Whether everything the app meant to fetch for an article is on the phone (SPEC §4.3). */
 object ArticleState {
@@ -110,6 +125,7 @@ data class ArticleRow(
     val ownLook: Boolean,
     val look: String?,
     val previewLines: Int,
+    val feedLanguage: String?,
 )
 
 /** Unread articles of a feed. */

@@ -14,7 +14,7 @@ interface ArticleDao {
      * folder's. Read and unread alike; the list filters and orders what it shows itself (SPEC §2.8).
      */
     @Query(
-        "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines " +
+        "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines, f.language AS feedLanguage " +
             "FROM article a JOIN feed f ON f.id = a.feedId " +
             "WHERE f.removedAt IS NULL AND (:feedId IS NULL OR a.feedId = :feedId) AND (:folderId IS NULL OR f.folderId = :folderId) " +
             "ORDER BY a.published DESC, a.id DESC",
@@ -23,7 +23,7 @@ interface ArticleDao {
 
     /** One article to show a look on: the feed's newest, or with [preferImage] the newest that names an image. */
     @Query(
-        "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines " +
+        "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines, f.language AS feedLanguage " +
             "FROM article a JOIN feed f ON f.id = a.feedId WHERE f.removedAt IS NULL AND (:feedId IS NULL OR a.feedId = :feedId) " +
             "ORDER BY CASE WHEN :preferImage AND a.imageUrl IS NOT NULL THEN 0 ELSE 1 END, a.published DESC LIMIT 1",
     )
@@ -50,6 +50,15 @@ interface ArticleDao {
 
     @Query("UPDATE article SET state = :state, imageUrl = :imageUrl, preview = :preview, words = :words WHERE id = :id")
     suspend fun setFetched(id: Long, state: Int, imageUrl: String?, preview: String?, words: Int)
+
+    @Query("SELECT * FROM article WHERE id = :id")
+    suspend fun article(id: Long): Article?
+
+    @Query("UPDATE article SET readIndex = :index, readOffset = :offset WHERE id = :id")
+    suspend fun setPosition(id: Long, index: Int, offset: Int)
+
+    @Query("UPDATE article SET version = :version WHERE id = :id")
+    suspend fun setVersion(id: Long, version: Int)
 
     @Query("UPDATE article SET read = :read WHERE id IN (:ids)")
     suspend fun setRead(ids: List<Long>, read: Boolean)

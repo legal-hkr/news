@@ -150,6 +150,7 @@ class Refresher(
             feedDao.chooseContent(feed.id, fullPage)
         }
         parsed.siteUrl?.let { feedDao.setSiteUrlIfNone(feed.id, it) }
+        parsed.language?.trim()?.takeIf { it.isNotEmpty() && it != feed.language }?.let { feedDao.setLanguage(feed.id, it) }
         val known = articleDao.guids(feed.id).toHashSet()
         val pending = parsed.items.filter { it.id !in known }.mapNotNull { item ->
             val feedBlocks = HtmlBlocks.convert(item.contentHtml ?: item.summaryHtml ?: "", item.link ?: feed.url)
@@ -210,10 +211,9 @@ class Refresher(
             if (textOnly) {
                 if (wanted.isNotEmpty()) incomplete = true
             } else {
-                val sizes = wanted.associateWith { images.fetch(it) }
-                if (sizes.values.any { it == null }) incomplete = true
-                // The size goes into the block, so the reader reserves the image's space before drawing it
-                shown = Blocks.mapImages(shown) { image -> sizes[image.url]?.let { image.copy(width = it.first, height = it.second) } ?: image }
+                val fetched = wanted.associateWith { images.fetchResult(it) }
+                if (fetched.values.any { it is ImageStore.Fetched.Failed }) incomplete = true
+                shown = sized(shown, fetched)
             }
         }
         articleDao.upsert(
@@ -227,6 +227,38 @@ class Refresher(
             Blocks.words(shown),
         )
     }
+
+    /**
+     * One article's full page with its images, when the reader asks for it (SPEC §5.8): for a feed
+     * kept on its own content, or an article whose page was not fetched. False when the page could
+     * not be fetched or nothing could be cut out of it.
+     */
+    suspend fun fetchPage(article: Article): Boolean = withContext(Dispatchers.IO) {
+        val link = article.link ?: return@withContext false
+        val feed = feedDao.feed(article.feedId) ?: return@withContext false
+        val extracted = try {
+            val response = http.get(link, HttpLimits.DOCUMENT)
+            Extractor.extract(response.body, response.charset, response.url)
+        } catch (_: FetchFailure) {
+            null
+        } ?: return@withContext false
+        var blocks = extracted.blocks
+        if (feed.storeImages) {
+            blocks = sized(blocks, Blocks.images(blocks).map { it.url }.distinct().take(MAX_IMAGES).associateWith { images.fetchResult(it) })
+        }
+        articleDao.upsert(ArticleContent(article.id, articleDao.content(article.id)?.feed, Blocks.encode(blocks)))
+        true
+    }
+
+    /**
+     * The blocks after their images were fetched: a stored image carries its size, so the reader
+     * reserves its space before drawing it; what turned out not to be a picture is dropped rather
+     * than left as a placeholder no fetch would ever fill.
+     */
+    private fun sized(blocks: List<Block>, fetched: Map<String, ImageStore.Fetched>): List<Block> =
+        Blocks.mapImages(Blocks.withoutImages(blocks, fetched.filterValues { it is ImageStore.Fetched.NotAPicture }.keys)) { image ->
+            (fetched[image.url] as? ImageStore.Fetched.Stored)?.let { image.copy(width = it.width, height = it.height) } ?: image
+        }
 
     /** The start of the article's text for the row: the feed's teaser, else the start of its content (SPEC §4.10). */
     private fun preview(item: ParsedItem, feedBlocks: List<Block>): String? {

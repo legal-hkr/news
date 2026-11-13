@@ -24,8 +24,14 @@ class Extracted(val blocks: List<Block>, val leadImage: String?)
 object Extractor {
     /** Less text than this is a teaser, a paywall notice or an error page, not an article. */
     private const val MIN_TEXT = 250
+    /** A link's text from which it reads as a teaser's headline, not a photo's credit. */
+    private const val TEASER_HEADLINE = 20
 
-    private val negative = Regex("""comment|disqus|share|sharing|social|related|sidebar|promo|advert|adsense|ad-slot|adslot|banner|newsletter|subscri|cookie|consent|popup|modal|breadcrumb|pagination|pager|widget|recommend|outbrain|taboola|sponsor|paywall|toolbar|masthead|menu|navbar|footer|byline|author-box|tags|print|hidden|skip-link""", RegexOption.IGNORE_CASE)
+    private val negative = Regex("""comment|disqus|share|sharing|social|related|sidebar|promo|advert|commercial|adsense|ad-slot|adslot|banner|badge|newsletter|subscri|cookie|consent|popup|modal|breadcrumb|pagination|pager|widget|recommend|outbrain|taboola|sponsor|paywall|toolbar|masthead|menu|navbar|footer|byline|author-box|tags|print|hidden|skip-link""", RegexOption.IGNORE_CASE)
+    /** Names that say "not the article" even next to a word of [keep]: advertising ("contentBodyAdvert") and the line of dates and bylines ("article-meta"). */
+    private val always = Regex("""advert|adsense|ad-?slot|ad-?wrapper|\bad--|commercial|outbrain|taboola|[-_]meta\b""", RegexOption.IGNORE_CASE)
+    /** Inline styles of what the page itself does not show. */
+    private val unseen = Regex("""display\s*:\s*none|visibility\s*:\s*hidden|opacity\s*:\s*0(\.0+)?\s*(;|$)""", RegexOption.IGNORE_CASE)
     private val keep = Regex("""article|body|content|entry|main|post|story|text|column""", RegexOption.IGNORE_CASE)
     private val positive = Regex("""article|body|content|entry|hentry|main|page|post|text|blog|story|lead""", RegexOption.IGNORE_CASE)
     private val protectedTags = setOf("html", "body", "article", "main")
@@ -40,6 +46,7 @@ object Extractor {
         val structured = structuredBody(document)
         val title = document.selectFirst("h1")?.text()?.trim()
         document.select("script, style, noscript, template, nav, aside, footer, form, button, input, select, textarea, svg, dialog, [hidden], [aria-hidden=true]").remove()
+        document.body().select("[style]").filter { unseen.containsMatchIn(it.attr("style")) }.forEach { it.remove() }
         document.body().allElements.filter { it.parent() != null && unlikely(it) }.forEach { it.remove() }
 
         val candidate = best(document)
@@ -60,7 +67,8 @@ object Extractor {
     private fun unlikely(element: Element): Boolean {
         if (element.normalName() in protectedTags) return false
         val label = label(element)
-        if (label.isBlank() || !negative.containsMatchIn(label) || keep.containsMatchIn(label)) return false
+        if (label.isBlank()) return false
+        if (!always.containsMatchIn(label) && (!negative.containsMatchIn(label) || keep.containsMatchIn(label))) return false
         return element.selectFirst(ARTICLE_INSIDE) == null
     }
 
@@ -118,12 +126,25 @@ object Extractor {
         return top
     }
 
-    /** Inside the article: boxes of links (related stories, tags), leftovers by name, and the title the reader shows itself. */
+    /**
+     * Inside the article: boxes of links (related stories, tags), leftovers by name, and the title
+     * the reader shows itself. A box with pictures goes too when it is a teaser of another page: the
+     * pictures are links themselves and nearly all of its text is a headline's worth of links.
+     */
     private fun clean(candidate: Element, title: String?) {
         candidate.select("div, section, ul, ol, table, p").filter { element ->
             val text = element.text()
-            element.parent() != null && text.isNotEmpty() && element.selectFirst("img, picture, figure, pre, blockquote") == null &&
-                ((linkDensity(element) > 0.6f && element.select("a").size > 1) || (element.normalName() != "p" && text.length < 25 && element.select("a").size == 1 && linkDensity(element) > 0.9f))
+            if (element.parent() == null || text.isEmpty() || element.selectFirst("pre, blockquote") != null) return@filter false
+            val links = element.select("a")
+            val pictures = element.select("img, picture, figure")
+            if (pictures.isNotEmpty()) {
+                // The teaser's signature: its picture and its headline lead to the same page
+                val headlines = links.filter { it.selectFirst("img, picture") == null && it.text().length >= TEASER_HEADLINE }.map { it.absUrl("href") }.toSet()
+                return@filter linkDensity(element) > 0.6f && pictures.all { picture ->
+                    picture.parents().firstOrNull { it.normalName() == "a" }?.absUrl("href")?.takeIf { it.isNotEmpty() } in headlines
+                }
+            }
+            (linkDensity(element) > 0.6f && links.size > 1) || (element.normalName() != "p" && text.length < 25 && links.size == 1 && linkDensity(element) > 0.9f)
         }.forEach { it.remove() }
         if (title != null) candidate.select("h1, h2").firstOrNull { it.text().trim().equals(title, ignoreCase = true) }?.remove()
         candidate.select("header").filter { it.selectFirst("p, img, figure") == null }.forEach { it.remove() }

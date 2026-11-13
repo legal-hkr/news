@@ -76,6 +76,17 @@ class ArticlesViewModel(private val app: NewsApplication) : ViewModel() {
         }
     }
 
+    /** The articles the reader pages over: the list as it was when an article was opened (SPEC §5.9). */
+    var readerRows: List<ArticleRow> = emptyList()
+        private set
+
+    /** The article the reader showed last; the list returns to its row. */
+    var returnTo: Long? = null
+
+    fun openReader() {
+        readerRows = list.value?.rows.orEmpty()
+    }
+
     fun rebuild() {
         rebuilds.value++
     }

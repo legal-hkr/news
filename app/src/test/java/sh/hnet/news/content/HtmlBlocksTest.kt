@@ -36,7 +36,7 @@ class HtmlBlocksTest {
     }
 
     @Test
-    fun `images, lazy ones, captions and pixels`() {
+    fun `images, lazy ones, captions, pixels and vector drawings`() {
         assertEquals(
             listOf(
                 Block.Image("https://site.example/a.jpg", alt = "A"),
@@ -46,10 +46,23 @@ class HtmlBlocksTest {
             ),
             convert(
                 """
-                <p><img src="/a.jpg" alt="A"><img src="/pixel.gif" width="1" height="1"></p>
+                <p><img src="/a.jpg" alt="A"><img src="/pixel.gif" width="1" height="1"><img src="/logo.svg?v=2" alt="Logo"></p>
                 <img src="data:image/gif;base64,R0lGOD" data-src="https://cdn.example/lazy.jpg">
                 <picture><source srcset="small.jpg 400w, big.jpg 1200w"><img></picture>
                 <figure><a href="/full"><img src="/fig.png"></a><figcaption>A caption with <em>emphasis</em></figcaption></figure>
+                """,
+            ),
+        )
+    }
+
+    @Test
+    fun `a srcset whose addresses hold commas, behind a lazy loader's placeholder`() {
+        assertEquals(
+            listOf(Block.Image("https://cdn.example/i/?t=crop:10:10,resize:fill:800:600,enlarge:1")),
+            convert(
+                """
+                <picture><source srcset="data:image/svg+xml,%3Csvg%20viewBox=&#039;0%200%20192%20120&#039;%3E%3C/svg%3E" data-srcset="https://cdn.example/i/?t=crop:10:10,resize:fill:400:300,enlarge:1 1x,https://cdn.example/i/?t=crop:10:10,resize:fill:800:600,enlarge:1 2x"></picture>
+                <a href="/other"><img data-src="https://cdn.example/thumb.jpg" width="108" height="108"></a>
                 """,
             ),
         )

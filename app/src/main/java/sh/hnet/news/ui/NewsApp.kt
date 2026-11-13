@@ -48,6 +48,9 @@ import sh.hnet.news.NewsApplication
 import sh.hnet.news.ui.articles.ArticlesScreen
 import sh.hnet.news.ui.articles.ArticlesViewModel
 import sh.hnet.news.ui.settings.ArticleListSettingsScreen
+import sh.hnet.news.ui.settings.ReadingSettingsScreen
+import sh.hnet.news.ui.reader.ReaderScreen
+import sh.hnet.news.ui.viewer.ImageViewerScreen
 import sh.hnet.news.ui.settings.RefreshSettingsScreen
 import sh.hnet.news.ui.components.LocalSnackbarLift
 import sh.hnet.news.ui.feeds.AddFeedScreen
@@ -101,6 +104,9 @@ fun NewsApp() {
     val snackbarLift = if (snackbars.currentSnackbarData != null) snackbarHeight else 0.dp
     val subscribed = stringResource(R.string.msg_subscribed)
 
+    // The image viewer lies over the reader rather than being a page: it is closed by fading, not by the pages' slide
+    var viewer by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
+
     val back: () -> Unit = { if (stack.size > 1) stack.removeAt(stack.lastIndex) }
     val open: (Screen) -> Unit = { stack.add(it) }
 
@@ -124,7 +130,10 @@ fun NewsApp() {
                 },
                 entryProvider = entryProvider<NavKey> {
                     entry<Screen.Articles> {
-                        ArticlesScreen(articles, onOpenSettings = { open(Screen.Settings) }, onAddFeed = { open(Screen.AddFeed) }, snackbars = snackbars, messageScope = scope)
+                        ArticlesScreen(articles, onOpenSettings = { open(Screen.Settings) }, onOpenArticle = { open(Screen.Reader(it)) }, onAddFeed = { open(Screen.AddFeed) }, snackbars = snackbars, messageScope = scope)
+                    }
+                    entry<Screen.Reader> { key ->
+                        ReaderScreen(articles, key.articleId, onBack = back, onShowImages = { urls, index -> if (urls.isNotEmpty()) viewer = urls to index }, snackbars = snackbars, messageScope = scope)
                     }
                     entry<Screen.Feeds> {
                         CompositionLocalProvider(LocalSnackbarLift provides snackbarLift) {
@@ -155,6 +164,7 @@ fun NewsApp() {
                             onOpenFeeds = { open(Screen.Feeds) },
                             onOpenRefresh = { open(Screen.SettingsRefresh) },
                             onOpenArticleList = { open(Screen.SettingsArticleList) },
+                            onOpenReading = { open(Screen.SettingsReading) },
                             onOpenLanguage = { open(Screen.SettingsLanguage) },
                             onOpenReset = { open(Screen.SettingsReset) },
                             onOpenAbout = { open(Screen.SettingsAbout) },
@@ -162,6 +172,7 @@ fun NewsApp() {
                     }
                     entry<Screen.SettingsRefresh> { RefreshSettingsScreen(onBack = back) }
                     entry<Screen.SettingsArticleList> { ArticleListSettingsScreen(onBack = back) }
+                    entry<Screen.SettingsReading> { ReadingSettingsScreen(onBack = back) }
                     entry<Screen.SettingsLanguage> { LanguageScreen(onBack = back) }
                     entry<Screen.SettingsReset> { ResetScreen(onBack = back) }
                     entry<Screen.SettingsAbout> {
@@ -177,8 +188,17 @@ fun NewsApp() {
                     entry<Screen.SettingsLicenses> { LicensesScreen(onBack = back) }
                 },
             )
+            viewer?.let { (urls, index) ->
+                ImageViewerScreen(urls, index, onClose = { viewer = null }) { text ->
+                    scope.launch {
+                        snackbars.currentSnackbarData?.dismiss()
+                        snackbars.showSnackbar(text, duration = SnackbarDuration.Short)
+                    }
+                }
+            }
             // One host for every page, above the system's navigation area; on the list, above its floating toolbar too
-            val onList = stack.lastOrNull() == Screen.Articles
+            // The reader has a floating toolbar of its own
+            val onList = stack.lastOrNull().let { it == Screen.Articles || it is Screen.Reader }
             SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(bottom = if (onList) 88.dp else 0.dp)) { data ->
                 Snackbar(data, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.padding(horizontal = 12.dp).onSizeChanged { snackbarHeight = with(density) { it.height.toDp() } })
             }

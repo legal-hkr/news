@@ -2,9 +2,6 @@
 
 package sh.hnet.news.ui.articles
 
-import android.content.ActivityNotFoundException
-import android.content.Intent
-import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -55,6 +52,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.foundation.interaction.DragInteraction
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -67,7 +67,6 @@ import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
@@ -90,7 +89,7 @@ import java.time.ZoneId
  * tap marks the article read and opens its link in the browser.
  */
 @Composable
-fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onAddFeed: () -> Unit, snackbars: SnackbarHostState, messageScope: CoroutineScope) {
+fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenArticle: (Long) -> Unit, onAddFeed: () -> Unit, snackbars: SnackbarHostState, messageScope: CoroutineScope) {
     val context = LocalContext.current
     val app = context.applicationContext as NewsApplication
     val scope = rememberCoroutineScope()
@@ -113,12 +112,15 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onAddFe
     if (progress == null) pulled = false
     val listState = rememberLazyListState()
     val pull = rememberPullToRefreshState()
-    val noBrowser = stringResource(R.string.msg_no_browser)
     val markedRead = stringResource(R.string.msg_marked_read)
     val undo = stringResource(R.string.button_undo)
 
-    // Leaving the screen rebuilds the list (SPEC §4.7): rows that stayed only because they were on screen go
-    DisposableEffect(Unit) { onDispose { model.rebuild() } }
+    // Leaving the screen rebuilds the list (SPEC §4.7): rows that stayed only because they were on screen go.
+    // Not for the reader: it pages over this list, and Back returns to the row of the article then open (§5.9)
+    var reading by remember { mutableStateOf(false) }
+    DisposableEffect(Unit) { onDispose { if (!reading) model.rebuild() } }
+    val markOnScroll by app.preferences.markOnScroll.collectAsStateWithLifecycle(false)
+    var returnTo by remember { mutableStateOf(model.returnTo.also { model.returnTo = null }) }
 
     // Both bars stay while the list scrolls (owner's decision, 13 Nov 2026; SPEC §4.1 and §4.5 had them leave)
     val topBar = TopAppBarDefaults.pinnedScrollBehavior()
@@ -171,15 +173,13 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onAddFe
                         ArticleRows(
                             rows, appLook, appLines, listState, { atTop },
                             Modifier.fillMaxSize().nestedScroll(topBar.nestedScrollConnection),
+                            returnTo = returnTo, onReturned = { returnTo = null },
+                            onPassed = if (markOnScroll) { ids -> model.setRead(ids, true) } else null,
                         ) { row ->
-                            model.setRead(listOf(row.article.id), true)
-                            row.article.link?.let { link ->
-                                try {
-                                    context.startActivity(Intent(Intent.ACTION_VIEW, link.toUri()))
-                                } catch (_: ActivityNotFoundException) {
-                                    Toast.makeText(context, noBrowser, Toast.LENGTH_SHORT).show()
-                                }
-                            }
+                            // The reader marks it read once it is on screen
+                            reading = true
+                            model.openReader()
+                            onOpenArticle(row.article.id)
                         }
                     }
                 }
@@ -286,7 +286,8 @@ private fun Tooltip(label: String, content: @Composable () -> Unit) {
 /** The rows under day headers (SPEC §4.2, §4.4): the rows of one day form a segmented group, 2 dp apart, outer corners 20, inner 6. */
 @Composable
 private fun ArticleRows(
-    rows: List<ArticleRow>, appLook: Look, appLines: Int, state: androidx.compose.foundation.lazy.LazyListState, atTop: () -> Boolean, modifier: Modifier, onOpen: (ArticleRow) -> Unit,
+    rows: List<ArticleRow>, appLook: Look, appLines: Int, state: androidx.compose.foundation.lazy.LazyListState, atTop: () -> Boolean, modifier: Modifier,
+    returnTo: Long?, onReturned: () -> Unit, onPassed: ((List<Long>) -> Unit)?, onOpen: (ArticleRow) -> Unit,
 ) {
     val context = LocalContext.current
     val zone = remember { ZoneId.systemDefault() }
@@ -298,6 +299,34 @@ private fun ArticleRows(
     if (firstId != shownFirst) {
         if (atTop()) state.requestScrollToItem(0)
         shownFirst = firstId
+    }
+    // Back from the reader: the row of the article it showed last is brought into view (SPEC §5.9)
+    LaunchedEffect(returnTo, rows) {
+        val target = rows.indexOfFirst { it.article.id == returnTo }
+        if (target < 0) return@LaunchedEffect
+        if (state.layoutInfo.visibleItemsInfo.none { it.key == returnTo }) {
+            val headers = (0..target).count { it == 0 || days[it - 1] != days[it] }
+            state.scrollToItem(target + headers)
+        }
+        onReturned()
+    }
+    // Mark as read while scrolling past (SPEC §4.7): a row that leaves the top edge during a scroll by the user
+    if (onPassed != null) {
+        val passed by rememberUpdatedState(onPassed)
+        LaunchedEffect(state) {
+            var byUser = false
+            launch { state.interactionSource.interactions.collect { if (it is DragInteraction.Start) byUser = true } }
+            launch { snapshotFlow { state.isScrollInProgress }.collect { if (!it) byUser = false } }
+            var seen = emptyList<Pair<Int, Any>>()
+            snapshotFlow { state.layoutInfo.visibleItemsInfo.map { it.index to it.key } }.collect { now ->
+                val first = now.firstOrNull()?.first ?: return@collect
+                if (byUser && state.lastScrolledForward) {
+                    val gone = seen.filter { it.first < first }.mapNotNull { it.second as? Long }
+                    if (gone.isNotEmpty()) passed(gone)
+                }
+                seen = now
+            }
+        }
     }
     LazyColumn(state = state, modifier = modifier, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp)) {
         rows.forEachIndexed { index, row ->

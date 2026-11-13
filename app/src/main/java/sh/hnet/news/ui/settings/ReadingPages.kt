@@ -21,6 +21,16 @@ import sh.hnet.news.data.ArticleRow
 import sh.hnet.news.refresh.RefreshJobService
 import sh.hnet.news.ui.articles.timeOfDay
 import sh.hnet.news.ui.components.LookControls
+import sh.hnet.news.ui.components.SettingsGroupHeader
+import sh.hnet.news.ui.reader.ReaderStyle
+import sh.hnet.news.ui.reader.TextControls
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.dp
 import sh.hnet.news.ui.components.SettingsGroup
 import sh.hnet.news.ui.components.SettingsNote
 import sh.hnet.news.ui.components.SettingsPage
@@ -113,3 +123,38 @@ fun lookSummary(look: Look): String = stringResource(
         Look.LARGE -> R.string.label_look_large_value
     },
 )
+
+/**
+ * Settings › Reading (SPEC §14.3): the reader's text size and typeface – the same values as its
+ * "Text" sheet – with a sample paragraph in the reader's styles, and marking read while scrolling.
+ */
+@Composable
+fun ReadingSettingsScreen(onBack: () -> Unit) {
+    val app = LocalContext.current.applicationContext as NewsApplication
+    val scope = rememberCoroutineScope()
+    val textSize by app.preferences.textSize.collectAsStateWithLifecycle(null)
+    val serif by app.preferences.serif.collectAsStateWithLifecycle(null)
+    val markOnScroll by app.preferences.markOnScroll.collectAsStateWithLifecycle(null)
+    SettingsPage(title = stringResource(R.string.title_reading), onBack = onBack) {
+        val size = textSize ?: return@SettingsPage
+        val serifOn = serif ?: return@SettingsPage
+        val mark = markOnScroll ?: return@SettingsPage
+        Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.padding(16.dp)) {
+                TextControls(size, serifOn, onSize = { scope.launch { app.preferences.setTextSize(it) } }, onSerif = { scope.launch { app.preferences.setSerif(it) } })
+            }
+        }
+        Column {
+            SettingsGroupHeader(stringResource(R.string.title_sample))
+            val style = remember(size, serifOn) { ReaderStyle(size, serifOn, null) }
+            Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surface, border = androidx.compose.foundation.BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.msg_reading_sample), style = style.paragraph, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(horizontal = 20.dp, vertical = 16.dp))
+            }
+        }
+        SettingsGroup {
+            row { shapes ->
+                SettingsSwitchRow(shapes, R.drawable.ic_done_all, stringResource(R.string.label_mark_read_on_scroll), mark, { on -> scope.launch { app.preferences.setMarkOnScroll(on) } })
+            }
+        }
+    }
+}

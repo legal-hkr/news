@@ -68,6 +68,9 @@ interface FeedDao {
     @Query("UPDATE feed SET siteUrl = :siteUrl WHERE id = :id AND siteUrl IS NULL")
     suspend fun setSiteUrlIfNone(id: Long, siteUrl: String)
 
+    @Query("UPDATE feed SET language = :language WHERE id = :id")
+    suspend fun setLanguage(id: Long, language: String?)
+
     @Query("UPDATE feed SET ownLook = :own, look = :look, previewLines = :previewLines WHERE id = :id")
     suspend fun setLook(id: Long, own: Boolean, look: String?, previewLines: Int)
 

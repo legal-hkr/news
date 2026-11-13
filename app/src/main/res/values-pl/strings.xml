@@ -99,6 +99,42 @@
     <string name="button_unsubscribe">Anuluj subskrypcję</string>
     <string name="msg_unsubscribed">Anulowano subskrypcję: %s</string>
 
+    <!-- Reader -->
+    <string name="label_date_reading_time">%1$s, czas czytania: %2$d min</string>
+    <string name="button_share">Udostępnij</string>
+    <string name="button_open_in_browser">Otwórz w przeglądarce</string>
+    <string name="title_text">Tekst</string>
+    <string name="menu_mark_unread">Oznacz jako nieprzeczytany</string>
+    <string name="menu_show_feed_content">Pokaż treść z kanału</string>
+    <string name="menu_show_full_page">Pokaż pełną stronę</string>
+    <string name="menu_copy_link">Kopiuj link</string>
+    <string name="label_size">Rozmiar</string>
+    <string name="label_percent">%d%%</string>
+    <string name="label_typeface">Krój pisma</string>
+    <string name="label_sans_serif">Bezszeryfowy</string>
+    <string name="label_serif">Szeryfowy</string>
+    <string name="msg_title_only">Ten kanał udostępnia tylko tytuł i link.</string>
+    <string name="msg_page_not_fetched">Nie udało się pobrać pełnej strony.</string>
+    <string name="msg_image_missing">Obrazu nie ma w telefonie.</string>
+    <string name="msg_image_not_fetched">Nie udało się pobrać obrazu.</string>
+    <string name="button_fetch_image">Pobierz obraz</string>
+    <string name="content_description_image_full_screen">Pokaż obraz na pełnym ekranie</string>
+    <string name="label_next_article">Następny artykuł</string>
+    <string name="label_video">Wideo</string>
+    <string name="label_audio">Audio</string>
+    <string name="label_social_post">Wpis z serwisu społecznościowego</string>
+    <string name="label_embedded">Osadzona treść</string>
+    <string name="msg_opens_in_browser">Otwiera się w przeglądarce.</string>
+    <string name="button_save_image">Zapisz obraz</string>
+    <string name="msg_image_saved">Zapisano obraz w folderze Pictures/News</string>
+    <string name="msg_image_not_saved">Nie udało się zapisać obrazu.</string>
+
+    <!-- Settings › Reading -->
+    <string name="title_reading">Czytanie</string>
+    <string name="desc_reading">Rozmiar tekstu: %s</string>
+    <string name="label_mark_read_on_scroll">Oznaczaj jako przeczytane przy przewijaniu listy</string>
+    <string name="msg_reading_sample">Czytnik pobiera to, co publikują obserwowane strony, i przechowuje w telefonie. Dzięki temu artykuł otwiera się od razu i czyta się go tak samo w pociągu, w tunelu czy w samolocie.</string>
+
     <!-- OPML -->
     <string name="title_import_opml">Zaimportować subskrypcje?</string>
     <string name="msg_import_summary">Kanały: %1$d, foldery: %2$d. Już w subskrypcjach, pominięte: %3$d.</string>

@@ -62,6 +62,58 @@ class ExtractorTest {
     }
 
     @Test
+    fun `an advertisement inside the article goes with its images`() {
+        val extracted = Extractor.extract(
+            page(
+                """
+                <article class="post">
+                  <div class="article-body">
+                    <p>First. ${sentence.repeat(3)}</p>
+                    <div id="commercialBreakFallback" class="fallback"><a href="https://ads.example/offer" rel="nofollow"><picture><img data-src="https://cdn.example/offer.png" width="320" height="370"></picture></a></div>
+                    <p>Last. ${sentence.repeat(3)}</p>
+                  </div>
+                </article>
+                """,
+            ),
+            url,
+        )
+        assertNotNull(extracted)
+        assertTrue(Blocks.images(extracted!!.blocks).isEmpty())
+    }
+
+    @Test
+    fun `teasers of other pages, advertising labels and the line of dates go, the article's own picture stays`() {
+        val extracted = Extractor.extract(
+            page(
+                """
+                <article class="post">
+                  <div class="article-body">
+                    <p class="article--meta">Updated: 13.11.2026 19:48</p>
+                    <p>First. ${sentence.repeat(3)}</p>
+                    <div class="contentBodySectionAdvert"><div class="label" style="opacity: 0">Advertisement</div><div class="slot"></div></div>
+                    <div class="content--excerpt">
+                      <p class="subtitle">Read more</p>
+                      <a href="/other-story"><picture><img src="/img/teaser.jpg" width="384" height="240"></picture></a>
+                      <a href="/other-story">Another story with a headline of its own</a>
+                    </div>
+                    <figure><a href="/img/full.jpg"><img src="/img/own.jpg"></a><figcaption>The committee, by <a href="/people/someone">a photographer of ours</a></figcaption></figure>
+                    <p>Last. ${sentence.repeat(3)}</p>
+                  </div>
+                </article>
+                """,
+            ),
+            url,
+        )
+        assertNotNull(extracted)
+        val text = Blocks.text(extracted!!.blocks)
+        assertFalse("Updated" in text)
+        assertFalse("Advertisement" in text)
+        assertFalse("Read more" in text)
+        assertFalse("Another story" in text)
+        assertEquals(listOf("https://site.example/img/own.jpg"), Blocks.images(extracted.blocks).map { it.url })
+    }
+
+    @Test
     fun `a page without article markup is cut by its paragraphs`() {
         val extracted = Extractor.extract(page("""<div id="tresc"><p>Pierwszy. ${sentence.repeat(2)}</p><p>Drugi. ${sentence.repeat(2)}</p><p>Trzeci. ${sentence.repeat(2)}</p></div>"""), url)
         val text = Blocks.text(extracted!!.blocks)

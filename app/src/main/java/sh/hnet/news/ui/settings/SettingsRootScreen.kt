@@ -19,7 +19,7 @@ import sh.hnet.news.ui.components.SettingsPage
  * join with their stages.
  */
 @Composable
-fun SettingsRootScreen(onBack: () -> Unit, onOpenFeeds: () -> Unit, onOpenRefresh: () -> Unit, onOpenArticleList: () -> Unit, onOpenLanguage: () -> Unit, onOpenReset: () -> Unit, onOpenAbout: () -> Unit) {
+fun SettingsRootScreen(onBack: () -> Unit, onOpenFeeds: () -> Unit, onOpenRefresh: () -> Unit, onOpenArticleList: () -> Unit, onOpenReading: () -> Unit, onOpenLanguage: () -> Unit, onOpenReset: () -> Unit, onOpenAbout: () -> Unit) {
     val context = LocalContext.current
     val version = BuildConfig.VERSION_NAME.removePrefix("v")
     // Read on every composition: changing it recreates the activity anyway
@@ -46,6 +46,11 @@ fun SettingsRootScreen(onBack: () -> Unit, onOpenFeeds: () -> Unit, onOpenRefres
                 val lines by app.preferences.previewLines.collectAsStateWithLifecycle(0)
                 val summary = look?.let { stringResource(R.string.desc_article_list, lookSummary(it), pluralStringResource(R.plurals.label_preview_lines, lines, lines)) }
                 SettingsNavigationRow(shapes, R.drawable.ic_list, stringResource(R.string.title_article_list), summary, onClick = onOpenArticleList)
+            }
+            row { shapes ->
+                val size by app.preferences.textSize.collectAsStateWithLifecycle(null)
+                val summary = size?.let { stringResource(R.string.desc_reading, stringResource(R.string.label_percent, it)) }
+                SettingsNavigationRow(shapes, R.drawable.ic_menu_book, stringResource(R.string.title_reading), summary, onClick = onOpenReading)
             }
         }
         SettingsGroup(stringResource(R.string.title_settings_group_app)) {

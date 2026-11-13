@@ -26,19 +26,28 @@ class ImageStore(context: Context, private val http: HttpFetcher) {
 
     fun has(url: String): Boolean = file(url).isFile
 
-    /**
-     * Fetches and stores an image unless it is there; its size in pixels, or null when it could not
-     * be fetched or is not a picture the phone can draw.
-     */
-    suspend fun fetch(url: String): Pair<Int, Int>? = withContext(Dispatchers.IO) {
+    /** What fetching an image gave. */
+    sealed interface Fetched {
+        /** On the phone; its size in pixels. */
+        class Stored(val width: Int, val height: Int) : Fetched
+        /** Not reached this time: worth another try. */
+        data object Failed : Fetched
+        /** Nothing at the address, or not a picture the phone can draw: another try would give the same. */
+        data object NotAPicture : Fetched
+    }
+
+    /** Fetches and stores an image unless it is there. */
+    suspend fun fetchResult(url: String): Fetched = withContext(Dispatchers.IO) {
         val file = file(url)
         if (!file.isFile) {
             val body = try {
                 http.get(url, MAX_BYTES).body
+            } catch (_: FetchFailure.NotFound) {
+                return@withContext Fetched.NotAPicture
             } catch (_: FetchFailure) {
-                return@withContext null
+                return@withContext Fetched.Failed
             }
-            if (bounds(body) == null) return@withContext null
+            if (bounds(body) == null) return@withContext Fetched.NotAPicture
             // Written whole or not at all: a half-written file would pass for the image
             val partial = File(directory, file.name + ".part")
             partial.writeBytes(body)
@@ -46,8 +55,11 @@ class ImageStore(context: Context, private val http: HttpFetcher) {
         }
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
         BitmapFactory.decodeFile(file.path, options)
-        if (options.outWidth > 0 && options.outHeight > 0) options.outWidth to options.outHeight else null
+        if (options.outWidth > 0 && options.outHeight > 0) Fetched.Stored(options.outWidth, options.outHeight) else Fetched.NotAPicture
     }
+
+    /** As [fetchResult]; the image's size in pixels, or null when it is not on the phone. */
+    suspend fun fetch(url: String): Pair<Int, Int>? = (fetchResult(url) as? Fetched.Stored)?.let { it.width to it.height }
 
     private fun bounds(body: ByteArray): Pair<Int, Int>? {
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }

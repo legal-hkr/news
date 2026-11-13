@@ -102,6 +102,43 @@
     <string name="button_unsubscribe">Unsubscribe</string>
     <string name="msg_unsubscribed">Unsubscribed: %s</string>
 
+    <!-- Reader -->
+    <string name="label_date_reading_time">%1$s, reading time: %2$d min</string>
+    <string name="button_share">Share</string>
+    <string name="button_open_in_browser">Open in browser</string>
+    <string name="title_text">Text</string>
+    <string name="menu_mark_unread">Mark as unread</string>
+    <string name="menu_show_feed_content">Show feed content</string>
+    <string name="menu_show_full_page">Show full page</string>
+    <string name="menu_copy_link">Copy link</string>
+    <string name="label_size">Size</string>
+    <string name="label_percent">%d%%</string>
+    <string name="label_typeface">Typeface</string>
+    <string name="label_sans_serif">Sans serif</string>
+    <string name="label_serif">Serif</string>
+    <string name="msg_title_only">This feed provides only the title and a link.</string>
+    <string name="msg_page_not_fetched">The full page could not be fetched.</string>
+    <string name="msg_image_missing">The image is not on the phone.</string>
+    <string name="msg_image_not_fetched">The image could not be fetched.</string>
+    <string name="button_fetch_image">Fetch image</string>
+    <string name="content_description_image_full_screen">Show image full screen</string>
+    <string name="label_next_article">Next article</string>
+    <string name="label_video">Video</string>
+    <string name="label_audio">Audio</string>
+    <string name="label_social_post">Social post</string>
+    <string name="label_embedded">Embedded content</string>
+    <string name="msg_opens_in_browser">Opens in the browser.</string>
+    <string name="label_image_counter" translatable="false">%1$d / %2$d</string>
+    <string name="button_save_image">Save to Pictures</string>
+    <string name="msg_image_saved">Image saved to Pictures/News</string>
+    <string name="msg_image_not_saved">The image could not be saved.</string>
+
+    <!-- Settings › Reading -->
+    <string name="title_reading">Reading</string>
+    <string name="desc_reading">Text size: %s</string>
+    <string name="label_mark_read_on_scroll">Mark as read while scrolling the list</string>
+    <string name="msg_reading_sample">A feed reader fetches what the sites you follow publish and keeps it on the phone, so an article opens at once and reads the same on a train, in a tunnel or on a plane.</string>
+
     <!-- OPML -->
     <string name="title_import_opml">Import subscriptions?</string>
     <string name="msg_import_summary">Feeds: %1$d, folders: %2$d. Already subscribed and skipped: %3$d.</string>

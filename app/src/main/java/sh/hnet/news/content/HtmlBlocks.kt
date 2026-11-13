@@ -178,22 +178,45 @@ object HtmlBlocks {
             val width = element.attr("width").toIntOrNull()
             val height = element.attr("height").toIntOrNull()
             if ((width != null && width <= 2) || (height != null && height <= 2)) return null
+            // An avatar, an emoticon, the thumbnail of a "read more" box: not a picture of the article
+            if (width != null && height != null && width <= THUMBNAIL && height <= THUMBNAIL) return null
             val address = listOf("src", "data-src", "data-lazy-src", "data-original", "data-url").map { element.absUrl(it) }.firstOrNull { it.startsWith("http", ignoreCase = true) }
-                ?: srcset(element.attr("srcset").ifEmpty { element.attr("data-srcset") }, element.baseUri())
+                ?: srcset(element, element.baseUri())
                 ?: (element.parent()?.takeIf { it.normalName() == "picture" }?.let { source(it) })
                 ?: return null
+            // A vector drawing (a logo, a badge) is nothing the phone's decoder draws: it would stay a placeholder
+            if (address.substringBefore('?').substringBefore('#').endsWith(".svg", ignoreCase = true)) return null
             return Block.Image(address, alt = element.attr("alt").trim().takeIf { it.isNotEmpty() })
         }
 
-        private fun source(picture: Element): String? = picture.select("source").firstNotNullOfOrNull { srcset(it.attr("srcset").ifEmpty { it.attr("data-srcset") }, picture.baseUri()) }
+        private fun source(picture: Element): String? = picture.select("source").firstNotNullOfOrNull { srcset(it, picture.baseUri()) }
 
-        /** The widest candidate of a srcset. */
+        /** The element's own srcset, or the one a lazy loader keeps aside while a placeholder stands in. */
+        private fun srcset(element: Element, base: String): String? = srcset(element.attr("srcset"), base) ?: srcset(element.attr("data-srcset"), base)
+
+        /**
+         * The widest candidate of a srcset. Addresses may hold commas themselves (image services write
+         * their options that way), so candidates are read as HTML does: an address runs to the next
+         * white space, and only a comma at its end or after its descriptor closes the candidate.
+         */
         private fun srcset(value: String, base: String): String? {
-            val best = value.split(",").mapNotNull { part ->
-                val pieces = part.trim().split(Regex("""\s+"""))
-                val address = pieces.firstOrNull()?.takeIf { it.isNotEmpty() } ?: return@mapNotNull null
-                address to (pieces.getOrNull(1)?.dropLast(1)?.toFloatOrNull() ?: 1f)
-            }.maxByOrNull { it.second }?.first ?: return null
+            val candidates = ArrayList<Pair<String, Float>>()
+            var position = 0
+            while (position < value.length) {
+                while (position < value.length && (value[position].isWhitespace() || value[position] == ',')) position++
+                val start = position
+                while (position < value.length && !value[position].isWhitespace()) position++
+                if (position == start) break
+                val address = value.substring(start, position)
+                if (address.endsWith(',')) {
+                    candidates += address.trimEnd(',') to 1f
+                    continue
+                }
+                val end = value.indexOf(',', position).let { if (it < 0) value.length else it }
+                candidates += address to (value.substring(position, end).trim().dropLast(1).toFloatOrNull() ?: 1f)
+                position = end
+            }
+            val best = candidates.filter { it.first.isNotEmpty() }.maxByOrNull { it.second }?.first ?: return null
             return try {
                 java.net.URI(base).resolve(best).toString()
             } catch (_: Exception) {
@@ -225,3 +248,6 @@ object HtmlBlocks {
         return result
     }
 }
+
+/** Both sides at most this, as the page declares them: a thumbnail. */
+private const val THUMBNAIL = 120
