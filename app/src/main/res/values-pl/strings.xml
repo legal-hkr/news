@@ -7,6 +7,9 @@
     <string name="button_close">Zamknij</string>
     <string name="button_copy">Kopiuj</string>
     <string name="button_restore">Przywróć</string>
+    <string name="button_save">Zapisz</string>
+    <string name="button_show">Pokaż</string>
+    <string name="button_undo">Cofnij</string>
     <string name="content_description_back">Wstecz</string>
     <string name="msg_copied">Skopiowano</string>
     <string name="msg_no_browser">Brak aplikacji, która otworzy ten link</string>
@@ -14,6 +17,67 @@
     <!-- Articles -->
     <string name="title_articles">Artykuły</string>
     <string name="msg_empty_no_feeds">Nie ma jeszcze kanałów.</string>
+    <string name="msg_empty_no_articles">Brak artykułów.</string>
+
+    <!-- Feeds (Settings › Feeds, Add a feed, a feed's page) -->
+    <string name="title_feeds">Kanały</string>
+    <string name="desc_feeds_summary">Kanały: %1$d, foldery: %2$d</string>
+    <string name="button_add_feed">Dodaj kanał</string>
+    <string name="button_import_opml">Importuj z OPML</string>
+    <string name="button_export_opml">Eksportuj do OPML</string>
+    <string name="content_description_collapse_folder">Zwiń folder</string>
+    <string name="content_description_expand_folder">Rozwiń folder</string>
+    <string name="content_description_more">Więcej</string>
+    <string name="content_description_clear">Wyczyść</string>
+    <string name="menu_rename">Zmień nazwę</string>
+    <string name="menu_delete_folder">Usuń folder</string>
+    <string name="msg_folder_deleted">Usunięto folder: %s</string>
+    <string name="error_folder_name_in_use">Folder o tej nazwie już istnieje.</string>
+    <string name="title_add_feed">Dodaj kanał</string>
+    <string name="label_address">Adres</string>
+    <string name="hint_address">Adres kanału albo strony.</string>
+    <string name="button_find_feed">Znajdź kanał</string>
+    <string name="msg_looking">Szukanie…</string>
+    <string name="title_feeds_found">Znalezione kanały (%d)</string>
+    <string name="button_continue">Dalej</string>
+    <string name="error_no_feed_found">Pod tym adresem nie ma kanału.</string>
+    <string name="error_no_network">Brak sieci.</string>
+    <string name="error_refused_or_login">Strona odrzuca aplikację albo wymaga logowania.</string>
+    <string name="error_site_no_answer">Strona nie odpowiedziała.</string>
+    <string name="msg_already_subscribed"><![CDATA[Już w subskrypcjach: <b>%s</b>]]></string>
+    <string name="msg_already_subscribed_plain">Już w subskrypcjach: %s</string>
+    <string name="button_open_feed">Otwórz kanał</string>
+    <string name="label_name">Nazwa</string>
+    <string name="title_latest_articles">Najnowsze artykuły</string>
+    <string name="label_folder">Folder</string>
+    <string name="label_no_folder">Bez folderu</string>
+    <string name="label_new_folder">Nowy folder</string>
+    <string name="label_folder_name">Nazwa folderu</string>
+    <string name="label_content">Treść</string>
+    <string name="label_full_page">Pełna strona</string>
+    <string name="desc_full_page">Aplikacja pobiera stronę każdego artykułu.</string>
+    <string name="label_feed_content">Treść z kanału</string>
+    <string name="desc_feed_content">To, co wysyła kanał.</string>
+    <string name="msg_recommend_full_page">Ten kanał wysyła tylko zajawki. Zalecana jest pełna strona.</string>
+    <string name="msg_feed_sends_full_text">Ten kanał wysyła pełną treść.</string>
+    <string name="button_subscribe">Subskrybuj</string>
+    <string name="msg_subscribed">Dodano subskrypcję: %s</string>
+    <string name="title_feed">Kanał</string>
+    <string name="title_feed_address">Adres kanału</string>
+    <string name="label_store_images">Przechowuj obrazy</string>
+    <string name="label_refresh_in_background">Odświeżaj w tle</string>
+    <string name="button_unsubscribe">Anuluj subskrypcję</string>
+    <string name="msg_unsubscribed">Anulowano subskrypcję: %s</string>
+
+    <!-- OPML -->
+    <string name="title_import_opml">Zaimportować subskrypcje?</string>
+    <string name="msg_import_summary">Kanały: %1$d, foldery: %2$d. Już w subskrypcjach, pominięte: %3$d.</string>
+    <string name="msg_import_nothing_new">Kanały: %d. Wszystkie są już w subskrypcjach.</string>
+    <string name="button_import">Importuj</string>
+    <string name="msg_imported">Zaimportowane kanały: %d</string>
+    <string name="error_not_opml">To nie jest plik OPML. Wybierz plik wyeksportowany z innego czytnika.</string>
+    <string name="msg_exported">Wyeksportowane kanały: %d</string>
+    <string name="error_export_failed">Nie udało się zapisać pliku.</string>
 
     <!-- Settings -->
     <string name="title_settings">Ustawienia</string>

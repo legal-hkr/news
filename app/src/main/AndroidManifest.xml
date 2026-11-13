@@ -2,8 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
-    <!-- No permissions yet: each one is added with the stage that needs it (INTERNET comes with
-         the first stage that fetches a feed). No storage, media or location permission, ever. -->
+    <!-- Fetching the feeds the user subscribed to, their articles' pages and images; nothing else. -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <!-- Telling "no network" from "the site did not answer". -->
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- No storage, media, location or notification permission, ever. -->
 
     <application
         android:name=".NewsApplication"
@@ -12,6 +15,7 @@
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher_round"
         android:label="@string/app_name"
+        android:networkSecurityConfig="@xml/network_security_config"
         android:supportsRtl="true"
         android:theme="@style/Theme.News">
 

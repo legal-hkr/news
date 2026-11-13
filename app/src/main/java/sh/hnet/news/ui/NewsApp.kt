@@ -22,7 +22,14 @@ import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.onSizeChanged
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -37,6 +44,10 @@ import androidx.navigation3.ui.NavDisplay
 import sh.hnet.news.R
 import sh.hnet.news.about.WhatsNew
 import sh.hnet.news.ui.articles.ArticlesScreen
+import sh.hnet.news.ui.components.LocalSnackbarLift
+import sh.hnet.news.ui.feeds.AddFeedScreen
+import sh.hnet.news.ui.feeds.FeedScreen
+import sh.hnet.news.ui.feeds.FeedsScreen
 import sh.hnet.news.ui.settings.AboutScreen
 import sh.hnet.news.ui.settings.AppLicenseScreen
 import sh.hnet.news.ui.settings.LanguageScreen
@@ -54,6 +65,8 @@ fun NewsApp() {
     val context = LocalContext.current
     val stack = rememberNavBackStack(Screen.Articles)
     val snackbars = remember { SnackbarHostState() }
+    // Outlives the page a message comes from (Unsubscribe closes its page before its snackbar ends)
+    val scope = rememberCoroutineScope()
 
     // After an update, once: "Updated to x.y.z" with What's new (as ComfyChair, Music and Clock)
     val updatedTo = stringResource(R.string.whats_new_updated_snackbar)
@@ -73,7 +86,12 @@ fun NewsApp() {
     val spatial: FiniteAnimationSpec<IntOffset> = motion.defaultSpatialSpec()
     val effects: FiniteAnimationSpec<Float> = motion.defaultEffectsSpec()
     val fastEffects: FiniteAnimationSpec<Float> = motion.fastEffectsSpec()
-    val shift = with(LocalDensity.current) { 30.dp.roundToPx() }
+    val density = LocalDensity.current
+    val shift = with(density) { 30.dp.roundToPx() }
+    // A showing snackbar's height, which a page's FAB rises by
+    var snackbarHeight by remember { mutableStateOf(0.dp) }
+    val snackbarLift = if (snackbars.currentSnackbarData != null) snackbarHeight else 0.dp
+    val subscribed = stringResource(R.string.msg_subscribed)
 
     val back: () -> Unit = { if (stack.size > 1) stack.removeAt(stack.lastIndex) }
     val open: (Screen) -> Unit = { stack.add(it) }
@@ -97,10 +115,36 @@ fun NewsApp() {
                         (slideOutHorizontally(spatial) { shift } + fadeOut(fastEffects))
                 },
                 entryProvider = entryProvider<NavKey> {
-                    entry<Screen.Articles> { ArticlesScreen(onOpenSettings = { open(Screen.Settings) }) }
+                    entry<Screen.Articles> {
+                        ArticlesScreen(onOpenSettings = { open(Screen.Settings) }, onAddFeed = { open(Screen.AddFeed) }, snackbars = snackbars, messageScope = scope)
+                    }
+                    entry<Screen.Feeds> {
+                        CompositionLocalProvider(LocalSnackbarLift provides snackbarLift) {
+                            FeedsScreen(onBack = back, onAddFeed = { open(Screen.AddFeed) }, onOpenFeed = { open(Screen.Feed(it)) }, snackbars = snackbars, messageScope = scope)
+                        }
+                    }
+                    entry<Screen.AddFeed> {
+                        AddFeedScreen(
+                            onBack = back,
+                            // The feed's page takes this page's place: Back from it returns to where adding began
+                            onOpenFeed = { id ->
+                                back()
+                                open(Screen.Feed(id))
+                            },
+                            onSubscribed = { name ->
+                                back()
+                                scope.launch {
+                                    snackbars.currentSnackbarData?.dismiss()
+                                    snackbars.showSnackbar(subscribed.format(name), duration = SnackbarDuration.Short)
+                                }
+                            },
+                        )
+                    }
+                    entry<Screen.Feed> { key -> FeedScreen(key.id, onBack = back, snackbars = snackbars, messageScope = scope) }
                     entry<Screen.Settings> {
                         SettingsRootScreen(
                             onBack = back,
+                            onOpenFeeds = { open(Screen.Feeds) },
                             onOpenLanguage = { open(Screen.SettingsLanguage) },
                             onOpenReset = { open(Screen.SettingsReset) },
                             onOpenAbout = { open(Screen.SettingsAbout) },
@@ -123,7 +167,7 @@ fun NewsApp() {
             )
             // One host for every page, above the system's navigation area
             SnackbarHost(snackbars, Modifier.align(Alignment.BottomCenter).navigationBarsPadding()) { data ->
-                Snackbar(data, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.padding(horizontal = 12.dp))
+                Snackbar(data, shape = MaterialTheme.shapes.extraLarge, modifier = Modifier.padding(horizontal = 12.dp).onSizeChanged { snackbarHeight = with(density) { it.height.toDp() } })
             }
         }
     }

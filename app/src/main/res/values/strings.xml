@@ -7,6 +7,10 @@
     <string name="button_close">Close</string>
     <string name="button_copy">Copy</string>
     <string name="button_restore">Restore</string>
+    <string name="button_save">Save</string>
+    <string name="button_show">Show</string>
+    <string name="button_undo">Undo</string>
+    <string name="button_ok" translatable="false">OK</string>
     <string name="content_description_back">Back</string>
     <string name="msg_copied">Copied</string>
     <string name="msg_no_browser">No app to open the link</string>
@@ -14,6 +18,68 @@
     <!-- Articles -->
     <string name="title_articles">Articles</string>
     <string name="msg_empty_no_feeds">No feeds yet.</string>
+    <string name="msg_empty_no_articles">No articles.</string>
+
+    <!-- Feeds (Settings › Feeds, Add a feed, a feed's page) -->
+    <string name="title_feeds">Feeds</string>
+    <string name="desc_feeds_summary">Feeds: %1$d, folders: %2$d</string>
+    <string name="title_opml" translatable="false">OPML</string>
+    <string name="button_add_feed">Add a feed</string>
+    <string name="button_import_opml">Import from OPML</string>
+    <string name="button_export_opml">Export to OPML</string>
+    <string name="content_description_collapse_folder">Collapse folder</string>
+    <string name="content_description_expand_folder">Expand folder</string>
+    <string name="content_description_more">More</string>
+    <string name="content_description_clear">Clear</string>
+    <string name="menu_rename">Rename</string>
+    <string name="menu_delete_folder">Delete folder</string>
+    <string name="msg_folder_deleted">Deleted folder: %s</string>
+    <string name="error_folder_name_in_use">A folder of this name exists.</string>
+    <string name="title_add_feed">Add a feed</string>
+    <string name="label_address">Address</string>
+    <string name="hint_address">A feed’s or a site’s address.</string>
+    <string name="button_find_feed">Find feed</string>
+    <string name="msg_looking">Looking…</string>
+    <string name="title_feeds_found">Feeds found (%d)</string>
+    <string name="button_continue">Continue</string>
+    <string name="error_no_feed_found">No feed found at this address.</string>
+    <string name="error_no_network">No network.</string>
+    <string name="error_refused_or_login">The site refuses the app or wants a login.</string>
+    <string name="error_site_no_answer">The site did not answer.</string>
+    <string name="msg_already_subscribed"><![CDATA[Already subscribed: <b>%s</b>]]></string>
+    <string name="msg_already_subscribed_plain">Already subscribed: %s</string>
+    <string name="button_open_feed">Open feed</string>
+    <string name="label_name">Name</string>
+    <string name="title_latest_articles">Latest articles</string>
+    <string name="label_folder">Folder</string>
+    <string name="label_no_folder">No folder</string>
+    <string name="label_new_folder">New folder</string>
+    <string name="label_folder_name">Folder name</string>
+    <string name="label_content">Content</string>
+    <string name="label_full_page">Full page</string>
+    <string name="desc_full_page">The app fetches each article’s page.</string>
+    <string name="label_feed_content">Feed’s content</string>
+    <string name="desc_feed_content">What the feed sends.</string>
+    <string name="msg_recommend_full_page">This feed sends only teasers. Full page recommended.</string>
+    <string name="msg_feed_sends_full_text">This feed already sends the full text.</string>
+    <string name="button_subscribe">Subscribe</string>
+    <string name="msg_subscribed">Subscribed: %s</string>
+    <string name="title_feed">Feed</string>
+    <string name="title_feed_address">Feed address</string>
+    <string name="label_store_images">Store images</string>
+    <string name="label_refresh_in_background">Refresh in the background</string>
+    <string name="button_unsubscribe">Unsubscribe</string>
+    <string name="msg_unsubscribed">Unsubscribed: %s</string>
+
+    <!-- OPML -->
+    <string name="title_import_opml">Import subscriptions?</string>
+    <string name="msg_import_summary">Feeds: %1$d, folders: %2$d. Already subscribed and skipped: %3$d.</string>
+    <string name="msg_import_nothing_new">Feeds: %d. All are already subscribed.</string>
+    <string name="button_import">Import</string>
+    <string name="msg_imported">Imported feeds: %d</string>
+    <string name="error_not_opml">This isn’t an OPML file. Pick a file exported from another reader.</string>
+    <string name="msg_exported">Exported feeds: %d</string>
+    <string name="error_export_failed">The file could not be written.</string>
 
     <!-- Settings -->
     <string name="title_settings">Settings</string>
