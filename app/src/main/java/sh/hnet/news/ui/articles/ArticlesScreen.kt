@@ -2,6 +2,11 @@
 
 package sh.hnet.news.ui.articles
 
+import sh.hnet.news.ui.feeds.withProblems
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Badge
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -128,6 +133,13 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
     val atTop by remember { derivedStateOf { listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0 } }
     LaunchedEffect(atTop) { model.atTop = atTop }
     val subtitle = refreshSubtitle(progress, lastRefresh, empty = stored == 0)
+    val refreshSettings by app.preferences.refresh.collectAsStateWithLifecycle(null)
+    // A refresh by the user; false when it did not start at once: one runs already, or the metered network is asked about first (SPEC §10.5)
+    val refresh: () -> Boolean = {
+        val asks = refreshSettings?.unmeteredOnly == true && app.refreshRequests.metered()
+        model.refresh() && !asks
+    }
+    val problems = feeds?.withProblems() ?: 0
     val allFeeds = feeds
 
     Column(Modifier.fillMaxSize()) {
@@ -141,10 +153,10 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
                         val refreshing = stringResource(R.string.msg_refreshing_one)
                         Box(Modifier.size(48.dp).semantics { contentDescription = refreshing }, contentAlignment = Alignment.Center) { LoadingIndicator(Modifier.size(28.dp)) }
                     } else {
-                        TooltipIconButton(R.drawable.ic_refresh, stringResource(R.string.content_description_refresh), { model.refresh() })
+                        TooltipIconButton(R.drawable.ic_refresh, stringResource(R.string.content_description_refresh), { refresh() })
                     }
                 }
-                TooltipIconButton(R.drawable.ic_settings, stringResource(R.string.content_description_settings), onOpenSettings)
+                SettingsButton(problems, onOpenSettings)
             },
             scrollBehavior = topBar,
         )
@@ -166,7 +178,7 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
                     )
                     else -> PullToRefreshBox(
                         isRefreshing = pulled && progress != null,
-                        onRefresh = { pulled = model.refresh() },
+                        onRefresh = { pulled = refresh() },
                         state = pull,
                         indicator = { PullToRefreshDefaults.LoadingIndicator(state = pull, isRefreshing = pulled && progress != null, modifier = Modifier.align(Alignment.TopCenter)) },
                     ) {
@@ -350,6 +362,23 @@ private fun ArticleRows(
                     RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom),
                     Modifier.padding(bottom = if (last) 0.dp else 2.dp),
                 ) { onOpen(row) }
+            }
+        }
+    }
+}
+
+/** Settings, with the number of feeds with problems on it (SPEC §10.3): the one place the list tells of them. */
+@Composable
+private fun SettingsButton(problems: Int, onClick: () -> Unit) {
+    val label = if (problems > 0) stringResource(R.string.content_description_settings_problems, problems) else stringResource(R.string.content_description_settings)
+    TooltipBox(
+        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Below),
+        tooltip = { PlainTooltip { Text(label) } },
+        state = rememberTooltipState(),
+    ) {
+        IconButton(onClick = onClick) {
+            BadgedBox(badge = { if (problems > 0) Badge { Text(countText(problems)) } }) {
+                Icon(painterResource(R.drawable.ic_settings), contentDescription = label)
             }
         }
     }

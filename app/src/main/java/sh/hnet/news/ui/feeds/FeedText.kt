@@ -35,3 +35,29 @@ sealed interface FolderChoice {
     data class Existing(val folder: Folder) : FolderChoice
     data class New(val name: String) : FolderChoice
 }
+
+private const val DAY_MS = 24 * 60 * 60 * 1000L
+private const val PROBLEM_DAYS = 3
+private const val PROBLEM_ATTEMPTS = 3
+
+/**
+ * For a feed with problems (SPEC §10.3), the days since its refreshes started to fail: every one
+ * for 3 days and at least 3 attempts, "No network" not counted. Null for any other feed.
+ */
+fun Feed.failingDays(now: Long = System.currentTimeMillis()): Int? {
+    val since = failingSince ?: return null
+    if (failedAttempts < PROBLEM_ATTEMPTS) return null
+    return ((now - since) / DAY_MS).toInt().takeIf { it >= PROBLEM_DAYS }
+}
+
+fun List<Feed>.withProblems(): Int = count { it.failingDays() != null }
+
+/** The sentence for a feed's last failed refresh (SPEC §10.4), by the stored name of its kind. */
+@StringRes
+fun failureSentence(kind: String?): Int = when (kind) {
+    "NO_NETWORK" -> R.string.error_no_network
+    "NOT_FOUND" -> R.string.error_address_not_found
+    "NOT_A_FEED" -> R.string.error_not_a_feed
+    "REFUSED" -> R.string.error_site_refuses
+    else -> R.string.error_site_no_answer
+}

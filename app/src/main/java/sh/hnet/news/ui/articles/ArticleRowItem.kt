@@ -134,7 +134,7 @@ private fun Meta(row: ArticleRow, time: String) {
         Text(row.feedTitle, style = style, color = color, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
         val mark = when (row.article.state) {
             ArticleState.FETCHING -> R.drawable.ic_downloading to R.string.label_fetching
-            ArticleState.INCOMPLETE -> R.drawable.ic_cloud_off to R.string.label_incomplete
+            ArticleState.INCOMPLETE, ArticleState.NOT_EXTRACTED -> R.drawable.ic_cloud_off to R.string.label_incomplete
             else -> null
         }
         if (mark != null) {

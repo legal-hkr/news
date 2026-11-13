@@ -140,6 +140,7 @@ class Refresher(
         val now = System.currentTimeMillis()
         if (response.notModified) {
             feedDao.setRefreshed(feed.id, now, 0, response.etag, response.lastModified)
+            if (!textOnly) completeEarlier(feed, feed.fullPage, now)
             return 0
         }
         val parsed = FeedParser.parse(response.body, response.charset, response.url)
@@ -151,6 +152,8 @@ class Refresher(
         }
         parsed.siteUrl?.let { feedDao.setSiteUrlIfNone(feed.id, it) }
         parsed.language?.trim()?.takeIf { it.isNotEmpty() && it != feed.language }?.let { feedDao.setLanguage(feed.id, it) }
+        // What an earlier refresh left incomplete, before the new articles: those are tried once in this one
+        if (!textOnly) completeEarlier(feed, fullPage, now)
         val known = articleDao.guids(feed.id).toHashSet()
         val pending = parsed.items.filter { it.id !in known }.mapNotNull { item ->
             val feedBlocks = HtmlBlocks.convert(item.contentHtml ?: item.summaryHtml ?: "", item.link ?: feed.url)
@@ -183,71 +186,89 @@ class Refresher(
     /** The article's page and images, as the feed's settings ask; then its final state. */
     private suspend fun complete(feed: Feed, fullPage: Boolean, pending: Pending, textOnly: Boolean, pageAllowed: Boolean) {
         val item = pending.item
-        var incomplete = false
-        var page: List<Block>? = null
-        var lead = item.imageUrl
-        if (fullPage && item.link != null) {
+        val rest = fetchRest(feed, fullPage, pending.id, item.link, item.imageUrl, pending.feedBlocks, null, textOnly, pageAllowed)
+        articleDao.setFetched(
+            pending.id, rest.state, rest.lead,
+            preview(item, pending.feedBlocks) ?: Blocks.text(rest.shown).take(PREVIEW_CHARS).takeIf { it.isNotEmpty() },
+            Blocks.words(rest.shown),
+        )
+    }
+
+    /**
+     * Articles an earlier refresh left incomplete – no answer then, or a text-only refresh (SPEC
+     * §10.5) – get their page and images now. Recent ones only, and a few at a time: what keeps
+     * failing is not asked for for ever.
+     */
+    private suspend fun completeEarlier(feed: Feed, fullPage: Boolean, now: Long) {
+        for (article in articleDao.incomplete(feed.id, now - RETRY_DAYS * DAY_MS, MAX_RETRIES)) {
+            val content = articleDao.content(article.id)
+            val rest = fetchRest(feed, fullPage, article.id, article.link, article.imageUrl, Blocks.decode(content?.feed), content?.page?.let { Blocks.decode(it) }?.takeIf { it.isNotEmpty() }, textOnly = false, pageAllowed = true)
+            articleDao.setCompleted(article.id, rest.state, rest.lead, Blocks.words(rest.shown))
+        }
+    }
+
+    /** What [fetchRest] left: the article's state, its lead image and the blocks the reader shows; [page] when those are the page's. */
+    private class Rest(val state: Int, val lead: String?, val shown: List<Block>, val page: Boolean)
+
+    /**
+     * Fetches what an article still lacks – its page when the feed wants one and [storedPage] is
+     * none, then the images of what will be shown – and stores the bodies.
+     */
+    private suspend fun fetchRest(feed: Feed, fullPage: Boolean, id: Long, link: String?, knownLead: String?, feedBlocks: List<Block>, storedPage: List<Block>?, textOnly: Boolean, pageAllowed: Boolean): Rest {
+        var state = ArticleState.COMPLETE
+        var page = storedPage
+        var lead = knownLead
+        if (fullPage && link != null && page == null) {
             if (!pageAllowed) {
-                incomplete = true
+                state = ArticleState.INCOMPLETE
             } else {
                 try {
-                    val response = http.get(item.link, HttpLimits.DOCUMENT)
+                    val response = http.get(link, HttpLimits.DOCUMENT)
                     val extracted = Extractor.extract(response.body, response.charset, response.url)
                     if (extracted != null) {
                         page = extracted.blocks
                         lead = lead ?: extracted.leadImage
                     } else {
-                        incomplete = true
+                        state = ArticleState.NOT_EXTRACTED
                     }
                 } catch (_: FetchFailure) {
-                    incomplete = true
+                    state = ArticleState.INCOMPLETE
                 }
             }
         }
-        var shown = page ?: pending.feedBlocks
+        var shown = page ?: feedBlocks
         lead = lead ?: Blocks.images(shown).firstOrNull()?.url
         if (feed.storeImages) {
             val wanted = (listOfNotNull(lead) + Blocks.images(shown).map { it.url }).distinct().take(MAX_IMAGES)
             if (textOnly) {
-                if (wanted.isNotEmpty()) incomplete = true
+                if (state == ArticleState.COMPLETE && wanted.any { !images.has(it) }) state = ArticleState.INCOMPLETE
             } else {
                 val fetched = wanted.associateWith { images.fetchResult(it) }
-                if (fetched.values.any { it is ImageStore.Fetched.Failed }) incomplete = true
+                if (state == ArticleState.COMPLETE && fetched.values.any { it is ImageStore.Fetched.Failed }) state = ArticleState.INCOMPLETE
                 shown = sized(shown, fetched)
             }
         }
-        articleDao.upsert(
-            ArticleContent(pending.id, feed = Blocks.encode(if (page == null) shown else pending.feedBlocks), page = if (page == null) null else Blocks.encode(shown)),
-        )
-        articleDao.setFetched(
-            pending.id,
-            if (incomplete) ArticleState.INCOMPLETE else ArticleState.COMPLETE,
-            lead,
-            preview(item, pending.feedBlocks) ?: Blocks.text(shown).take(PREVIEW_CHARS).takeIf { it.isNotEmpty() },
-            Blocks.words(shown),
-        )
+        articleDao.upsert(ArticleContent(id, feed = Blocks.encode(if (page == null) shown else feedBlocks), page = if (page == null) null else Blocks.encode(shown)))
+        return Rest(state, lead, shown, page != null)
     }
 
     /**
-     * One article's full page with its images, when the reader asks for it (SPEC §5.8): for a feed
-     * kept on its own content, or an article whose page was not fetched. False when the page could
-     * not be fetched or nothing could be cut out of it.
+     * One article's full page with its images, when the reader asks for it (SPEC §5.8, §5.10): for
+     * a feed kept on its own content, or an article whose page is not on the phone. False when the
+     * page could not be fetched or nothing could be cut out of it. The article's state follows for a
+     * feed set to full pages; a feed kept on its own content was never incomplete for lacking one.
      */
     suspend fun fetchPage(article: Article): Boolean = withContext(Dispatchers.IO) {
-        val link = article.link ?: return@withContext false
+        if (article.link == null) return@withContext false
         val feed = feedDao.feed(article.feedId) ?: return@withContext false
-        val extracted = try {
-            val response = http.get(link, HttpLimits.DOCUMENT)
-            Extractor.extract(response.body, response.charset, response.url)
-        } catch (_: FetchFailure) {
-            null
-        } ?: return@withContext false
-        var blocks = extracted.blocks
-        if (feed.storeImages) {
-            blocks = sized(blocks, Blocks.images(blocks).map { it.url }.distinct().take(MAX_IMAGES).associateWith { images.fetchResult(it) })
+        val content = articleDao.content(article.id)
+        val rest = fetchRest(feed, fullPage = true, article.id, article.link, article.imageUrl, Blocks.decode(content?.feed), null, textOnly = false, pageAllowed = true)
+        if (feed.fullPage) {
+            articleDao.setCompleted(article.id, rest.state, rest.lead, Blocks.words(rest.shown))
+        } else if (rest.page) {
+            articleDao.setCompleted(article.id, article.state, rest.lead, Blocks.words(rest.shown))
         }
-        articleDao.upsert(ArticleContent(article.id, articleDao.content(article.id)?.feed, Blocks.encode(blocks)))
-        true
+        rest.page
     }
 
     /**
@@ -271,6 +292,9 @@ class Refresher(
         /** Article pages fetched for one feed in one refresh; a first fetch of a long feed leaves the rest incomplete. */
         const val MAX_PAGES = 30
         const val MAX_IMAGES = 40
+        /** Incomplete articles of one feed tried again in one refresh, and for how many days after they were first seen. */
+        const val MAX_RETRIES = 20
+        const val RETRY_DAYS = 3
         const val PREVIEW_CHARS = 400
         const val DAY_MS = 24 * 60 * 60 * 1000L
     }

@@ -1,5 +1,6 @@
 package sh.hnet.news.ui.settings
 
+import sh.hnet.news.ui.feeds.withProblems
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -32,7 +33,9 @@ fun SettingsRootScreen(onBack: () -> Unit, onOpenFeeds: () -> Unit, onOpenRefres
         SettingsGroup {
             row { shapes ->
                 val summary = feeds?.let { stringResource(R.string.desc_feeds_summary, it.size, folders?.size ?: 0) }
-                SettingsNavigationRow(shapes, R.drawable.ic_rss_feed, stringResource(R.string.title_feeds), summary, onClick = onOpenFeeds)
+                // How many feeds have problems (SPEC §10.3)
+                val problems = feeds?.withProblems() ?: 0
+                SettingsNavigationRow(shapes, R.drawable.ic_rss_feed, stringResource(R.string.title_feeds), summary, badge = problems.takeIf { it > 0 }?.toString(), error = problems > 0, onClick = onOpenFeeds)
             }
         }
         SettingsGroup(stringResource(R.string.title_group_reading)) {

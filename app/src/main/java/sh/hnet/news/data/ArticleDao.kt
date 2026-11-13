@@ -14,7 +14,7 @@ interface ArticleDao {
      * folder's. Read and unread alike; the list filters and orders what it shows itself (SPEC §2.8).
      */
     @Query(
-        "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines, f.language AS feedLanguage " +
+        "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines, f.language AS feedLanguage, f.fullPage AS feedFullPage " +
             "FROM article a JOIN feed f ON f.id = a.feedId " +
             "WHERE f.removedAt IS NULL AND (:feedId IS NULL OR a.feedId = :feedId) AND (:folderId IS NULL OR f.folderId = :folderId) " +
             "ORDER BY a.published DESC, a.id DESC",
@@ -23,7 +23,7 @@ interface ArticleDao {
 
     /** One article to show a look on: the feed's newest, or with [preferImage] the newest that names an image. */
     @Query(
-        "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines, f.language AS feedLanguage " +
+        "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines, f.language AS feedLanguage, f.fullPage AS feedFullPage " +
             "FROM article a JOIN feed f ON f.id = a.feedId WHERE f.removedAt IS NULL AND (:feedId IS NULL OR a.feedId = :feedId) " +
             "ORDER BY CASE WHEN :preferImage AND a.imageUrl IS NOT NULL THEN 0 ELSE 1 END, a.published DESC LIMIT 1",
     )
@@ -50,6 +50,13 @@ interface ArticleDao {
 
     @Query("UPDATE article SET state = :state, imageUrl = :imageUrl, preview = :preview, words = :words WHERE id = :id")
     suspend fun setFetched(id: Long, state: Int, imageUrl: String?, preview: String?, words: Int)
+
+    @Query("UPDATE article SET state = :state, imageUrl = :imageUrl, words = :words WHERE id = :id")
+    suspend fun setCompleted(id: Long, state: Int, imageUrl: String?, words: Int)
+
+    /** A feed's articles the next refresh completes (SPEC §10.5): the newest of those first seen since [since]. */
+    @Query("SELECT * FROM article WHERE feedId = :feedId AND state = 2 AND firstSeen >= :since ORDER BY published DESC LIMIT :limit")
+    suspend fun incomplete(feedId: Long, since: Long, limit: Int): List<Article>
 
     @Query("SELECT * FROM article WHERE id = :id")
     suspend fun article(id: Long): Article?

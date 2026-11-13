@@ -2,6 +2,9 @@
 
 package sh.hnet.news.ui.reader
 
+import sh.hnet.news.data.ArticleState
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.Button
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.ConnectivityManager
@@ -157,6 +160,29 @@ fun ReaderScreen(model: ArticlesViewModel, articleId: Long, onBack: () -> Unit, 
     }
 
     // Both bars stay in place while reading, as on the list (the owner's decision over SPEC §5.1)
+    // The article's page, asked for from the menu or from a note about what is missing (SPEC §5.8, §5.10)
+    val fetchPage: (PageState) -> Unit = { state ->
+        val article = state.article
+        if (article != null && !state.busy) {
+            if (context.getSystemService(ConnectivityManager::class.java).activeNetwork == null) {
+                message(noNetwork)
+            } else {
+                scope.launch {
+                    state.busy = true
+                    val fetched = app.refresher.fetchPage(article)
+                    load(app, state)
+                    state.busy = false
+                    if (fetched) {
+                        // Remembered for this article alone; the feed's setting stays
+                        state.version = ArticleVersion.PAGE
+                        app.articles.setVersion(article.id, ArticleVersion.PAGE)
+                    } else {
+                        message(notFetched)
+                    }
+                }
+            }
+        }
+    }
     val topBar = TopAppBarDefaults.pinnedScrollBehavior()
     val current = stateOf(rows[pager.currentPage.coerceIn(0, rows.lastIndex)])
     LaunchedEffect(pager.settledPage) {
@@ -204,6 +230,7 @@ fun ReaderScreen(model: ArticlesViewModel, articleId: Long, onBack: () -> Unit, 
                         state, next = rows.getOrNull(index + 1),
                         Modifier.fillMaxSize().nestedScroll(topBar.nestedScrollConnection),
                         onNext = { scope.launch { pager.animateScrollToPage(index + 1) } },
+                        onFetchPage = { fetchPage(state) },
                     )
                 }
             }
@@ -244,29 +271,13 @@ fun ReaderScreen(model: ArticlesViewModel, articleId: Long, onBack: () -> Unit, 
                             MenuItem(stringResource(other), if (current.showsPage) R.drawable.ic_rss_feed else R.drawable.ic_article, 1, count) {
                                 menu = false
                                 val state = current
-                                scope.launch {
-                                    when {
-                                        state.showsPage -> state.version = ArticleVersion.FEED
-                                        state.page != null -> state.version = ArticleVersion.PAGE
-                                        context.getSystemService(ConnectivityManager::class.java).activeNetwork == null -> {
-                                            message(noNetwork)
-                                            return@launch
-                                        }
-                                        else -> {
-                                            state.busy = true
-                                            val fetched = app.refresher.fetchPage(article)
-                                            state.busy = false
-                                            if (!fetched) {
-                                                message(notFetched)
-                                                return@launch
-                                            }
-                                            load(app, state)
-                                            state.version = ArticleVersion.PAGE
-                                        }
-                                    }
-                                    // Remembered for this article alone; the feed's setting stays
-                                    app.articles.setVersion(article.id, state.version)
+                                when {
+                                    state.showsPage -> state.version = ArticleVersion.FEED
+                                    state.page != null -> state.version = ArticleVersion.PAGE
+                                    else -> fetchPage(state)
                                 }
+                                // Remembered for this article alone; the feed's setting stays
+                                if (state.version != ArticleVersion.DEFAULT) scope.launch { app.articles.setVersion(article.id, state.version) }
                             }
                         }
                     }
@@ -310,8 +321,9 @@ private fun shownImages(state: PageState, app: NewsApplication): List<String> =
     (listOfNotNull(leadImage(state, app)?.url) + Blocks.images(state.blocks).map { it.url }).distinct().filter { app.images.has(it) }
 
 @Composable
-private fun ArticlePage(state: PageState, next: ArticleRow?, modifier: Modifier, onNext: () -> Unit) {
-    val app = LocalContext.current.applicationContext as NewsApplication
+private fun ArticlePage(state: PageState, next: ArticleRow?, modifier: Modifier, onNext: () -> Unit, onFetchPage: () -> Unit) {
+    val context = LocalContext.current
+    val app = context.applicationContext as NewsApplication
     LaunchedEffect(state) { if (state.article == null) load(app, state) }
     // Nothing is drawn until the article is read: it is on the phone, so this is a frame or two, not a loading state
     val article = state.article ?: return
@@ -333,6 +345,9 @@ private fun ArticlePage(state: PageState, next: ArticleRow?, modifier: Modifier,
             }
         }
         val blocks = state.blocks
+        // The feed wants full pages and this article's is not on the phone (SPEC §5.10)
+        val missing = (article.state == ArticleState.INCOMPLETE || article.state == ArticleState.NOT_EXTRACTED) && state.page == null && state.row.feedFullPage && article.link != null
+        val offline = remember(article.state, state.busy) { context.getSystemService(ConnectivityManager::class.java).activeNetwork == null }
         val lead = remember(blocks, article.imageUrl) { leadImage(state, app) }
         val column = Modifier.widthIn(max = 600.dp).fillMaxWidth()
         LazyColumn(
@@ -341,10 +356,17 @@ private fun ArticlePage(state: PageState, next: ArticleRow?, modifier: Modifier,
             horizontalAlignment = Alignment.CenterHorizontally,
             contentPadding = PaddingValues(start = READER_SIDE, end = READER_SIDE, top = 8.dp, bottom = 112.dp + WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()),
         ) {
+            if (missing && blocks.isNotEmpty()) item(key = "note", contentType = "note") { PageNote(article.state, state.busy, column, onFetchPage) }
             item(key = "header", contentType = "header") { Header(article, hasText = blocks.isNotEmpty(), column) }
             if (lead != null) item(key = "lead", contentType = "block") { Box(column) { BlockView(lead) } }
             if (blocks.isEmpty()) {
-                item(key = "title only", contentType = "state") { TitleOnly(article.link, column) }
+                item(key = "nothing", contentType = "state") {
+                    if (missing) {
+                        NotOnPhone(offline, state.busy, article.link, column, onFetchPage)
+                    } else {
+                        TitleOnly(article.link, canFetch = !state.row.feedFullPage && article.link != null && !offline, state.busy, column, onFetchPage)
+                    }
+                }
             } else {
                 itemsIndexed(blocks, contentType = { _, block -> block::class }) { _, block -> Box(column) { BlockView(block) } }
             }
@@ -375,12 +397,61 @@ private fun Header(article: Article, hasText: Boolean, modifier: Modifier) {
     }
 }
 
-/** An article the feed gave only a title and a link for (SPEC §5.10). */
+/**
+ * Above the header of an article shown from the feed because its page is not on the phone (SPEC
+ * §5.10): why, and Try again.
+ */
 @Composable
-private fun TitleOnly(link: String?, modifier: Modifier) {
+private fun PageNote(articleState: Int, busy: Boolean, modifier: Modifier, onTryAgain: () -> Unit) {
+    Surface(color = MaterialTheme.colorScheme.surfaceContainerHigh, shape = MaterialTheme.shapes.large, modifier = modifier.padding(bottom = 24.dp)) {
+        Row(Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 4.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Icon(painterResource(R.drawable.ic_info), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+            Column {
+                Text(
+                    stringResource(if (articleState == ArticleState.NOT_EXTRACTED) R.string.msg_extraction_failed else R.string.msg_page_missing),
+                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurface, modifier = Modifier.padding(end = 8.dp),
+                )
+                Fetching(busy) { TextButton(onClick = onTryAgain, modifier = Modifier.offset(x = (-12).dp)) { Text(stringResource(R.string.button_try_again)) } }
+            }
+        }
+    }
+}
+
+/** A button, or while its work runs the loading indicator with "Fetching…" in its place. */
+@Composable
+private fun Fetching(busy: Boolean, button: @Composable () -> Unit) {
+    if (busy) {
+        Row(Modifier.height(48.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LoadingIndicator(Modifier.size(24.dp))
+            Text(stringResource(R.string.msg_fetching), style = MaterialTheme.typography.labelLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+    } else {
+        button()
+    }
+}
+
+/** An article whose feed wants full pages and has nothing of it on the phone (SPEC §5.10). */
+@Composable
+private fun NotOnPhone(offline: Boolean, busy: Boolean, link: String?, modifier: Modifier, onTryAgain: () -> Unit) {
+    val reader = LocalReader.current
+    Column(modifier.padding(vertical = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        Icon(painterResource(R.drawable.ic_cloud_off), contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(stringResource(if (offline) R.string.msg_not_on_phone else R.string.msg_not_on_phone_online), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        Fetching(busy) { FilledTonalButton(onClick = onTryAgain) { Text(stringResource(R.string.button_try_again)) } }
+        if (link != null && !offline) FilledTonalButton(onClick = { reader.open(link) }) { Text(stringResource(R.string.button_open_in_browser)) }
+    }
+}
+
+/**
+ * An article the feed gave only a title and a link for (SPEC §5.10). A feed kept on its own
+ * content offers the page of this one article ([canFetch]).
+ */
+@Composable
+private fun TitleOnly(link: String?, canFetch: Boolean, busy: Boolean, modifier: Modifier, onFetchPage: () -> Unit) {
     val reader = LocalReader.current
     Column(modifier.padding(vertical = 32.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
         Text(stringResource(R.string.msg_title_only), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+        if (canFetch || busy) Fetching(busy) { Button(onClick = onFetchPage) { Text(stringResource(R.string.button_fetch_full_page)) } }
         if (link != null) FilledTonalButton(onClick = { reader.open(link) }) { Text(stringResource(R.string.button_open_in_browser)) }
     }
 }

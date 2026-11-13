@@ -2,6 +2,9 @@
 
 package sh.hnet.news.ui.feeds
 
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Row
 import androidx.annotation.DrawableRes
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -210,6 +213,7 @@ fun FeedsScreen(onBack: () -> Unit, onAddFeed: () -> Unit, onOpenFeed: (Long) ->
                 }) { shapes, dragged ->
                     FolderRow(
                         shapes, folder, dragged,
+                        problems = if (folder.collapsed) shownFeeds.filter { it.folderId == folder.id }.withProblems() else 0,
                         onToggle = { if (reorder.draggedKey == null) messageScope.launch { app.feeds.setCollapsed(folder.id, !folder.collapsed) } },
                         onRename = { renaming = folder },
                         onDelete = {
@@ -293,7 +297,7 @@ fun NoFeeds(onAddFeed: () -> Unit, onImport: () -> Unit, modifier: Modifier = Mo
 }
 
 @Composable
-private fun FolderRow(shapes: ListItemShapes, folder: Folder, dragged: Boolean, onToggle: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
+private fun FolderRow(shapes: ListItemShapes, folder: Folder, dragged: Boolean, problems: Int, onToggle: () -> Unit, onRename: () -> Unit, onDelete: () -> Unit) {
     var menu by remember { mutableStateOf(false) }
     SegmentedListItem(
         onClick = onToggle,
@@ -308,7 +312,12 @@ private fun FolderRow(shapes: ListItemShapes, folder: Folder, dragged: Boolean, 
             }
         },
         trailingContent = {
-            Box {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                // A collapsed folder hides its feeds' own marks (SPEC §6.2)
+                if (problems > 0) {
+                    Icon(painterResource(R.drawable.ic_error), contentDescription = stringResource(R.string.desc_feeds_with_problems, problems), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                }
+                Box {
                 TooltipIconButton(R.drawable.ic_more_vert, stringResource(R.string.content_description_more), { menu = true })
                 DropdownMenuPopup(expanded = menu, onDismissRequest = { menu = false }) {
                     DropdownMenuGroup(shapes = MenuDefaults.groupShape(0, 2)) {
@@ -318,6 +327,7 @@ private fun FolderRow(shapes: ListItemShapes, folder: Folder, dragged: Boolean, 
                     DropdownMenuGroup(shapes = MenuDefaults.groupShape(1, 2)) {
                         MenuItem(stringResource(R.string.menu_delete_folder), R.drawable.ic_delete, 0, 1, error = true) { menu = false; onDelete() }
                     }
+                }
                 }
             }
         },
@@ -333,6 +343,15 @@ private fun FeedRow(shapes: ListItemShapes, feed: Feed, dragged: Boolean, onClic
         shapes = shapes,
         colors = rowColors(dragged),
         leadingContent = { FeedIconBox(feed) },
+        // A feed with problems says for how long (SPEC §6.2, §10.3): an icon and words, not color alone
+        supportingContent = feed.failingDays()?.let { days ->
+            {
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Icon(painterResource(R.drawable.ic_error), contentDescription = null, tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(16.dp))
+                    Text(pluralStringResource(R.plurals.msg_feed_failing, days, days), color = MaterialTheme.colorScheme.error, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+            }
+        },
     ) {
         Text(feed.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }

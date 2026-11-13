@@ -1,5 +1,6 @@
 package sh.hnet.news
 
+import sh.hnet.news.refresh.RefreshRequests
 import android.app.Application
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -45,6 +46,8 @@ class NewsApplication : Application() {
 
     val refresher: Refresher by lazy { Refresher(database.feedDao(), articles, http, images, preferences, appScope) }
 
+    val refreshRequests: RefreshRequests by lazy { RefreshRequests(this, preferences, refresher, appScope) }
+
     override fun onCreate() {
         super.onCreate()
         appScope.launch {
@@ -56,13 +59,8 @@ class NewsApplication : Application() {
         }
     }
 
-    /** The first fetch of feeds just subscribed, after the refresh under way if there is one. */
-    private fun fetchFirst(feedIds: List<Long>) {
-        appScope.launch {
-            refresher.current()?.join()
-            refresher.start(feedIds)
-        }
-    }
+    /** The first fetch of feeds just subscribed or imported, after the refresh under way if there is one. */
+    private fun fetchFirst(feedIds: List<Long>) = refreshRequests.request(feedIds, afterCurrent = true)
 
     /** A feed's articles with their images, when the feed goes for good. */
     private suspend fun deleteArticles(feedId: Long) {

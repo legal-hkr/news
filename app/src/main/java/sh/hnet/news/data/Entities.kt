@@ -104,8 +104,10 @@ object ArticleState {
     const val COMPLETE = 0
     /** Seen in the feed; its page or images are still being fetched in this refresh. */
     const val FETCHING = 1
-    /** The full page could not be extracted, or images are missing. */
+    /** The page or some images were not fetched (no answer, a text-only refresh): the next refresh tries again. */
     const val INCOMPLETE = 2
+    /** The page was fetched but no article could be cut out of it: shown as incomplete, tried again only when asked. */
+    const val NOT_EXTRACTED = 3
 }
 
 /** An article's body as blocks in JSON (content/Blocks): what the feed sent and what was cut out of the page. Apart from [Article] so the list never reads it. */
@@ -126,6 +128,8 @@ data class ArticleRow(
     val look: String?,
     val previewLines: Int,
     val feedLanguage: String?,
+    /** The feed is set to fetch each article's page. */
+    val feedFullPage: Boolean,
 )
 
 /** Unread articles of a feed. */

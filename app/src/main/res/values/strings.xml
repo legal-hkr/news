@@ -232,4 +232,27 @@
     <string name="label_mit_license" translatable="false">MIT License</string>
     <string name="title_about_source">Source code</string>
     <string name="msg_about_privacy">News talks only to the sites of the feeds you subscribe to: it fetches their feeds, their article pages and their images. Nothing else leaves the phone. No account, no analytics, no other service.</string>
+    <string name="msg_extraction_failed">The full page could not be extracted. This is the feed’s content.</string>
+    <string name="msg_page_missing">The full page has not been fetched. This is the feed’s content.</string>
+    <string name="button_try_again">Try again</string>
+    <string name="msg_fetching">Fetching…</string>
+    <string name="button_fetch_full_page">Fetch full page</string>
+    <string name="msg_not_on_phone">This article is not on the phone. There is no network to fetch it.</string>
+    <string name="msg_not_on_phone_online">This article is not on the phone.</string>
+    <string name="title_last_refresh">Last refresh</string>
+    <string name="msg_not_refreshed_since">Not refreshed since: %s</string>
+    <string name="button_edit_address">Edit address</string>
+    <string name="error_address_not_found">Address not found. The feed moved or is gone.</string>
+    <string name="error_not_a_feed">This address is not a feed any more.</string>
+    <string name="error_site_refuses">The site blocks the app.</string>
+    <string name="desc_feeds_with_problems">Feeds with problems: %d</string>
+    <string name="content_description_settings_problems">Settings. Feeds with problems: %d</string>
+    <string name="title_metered_refresh">Refresh on a metered network?</string>
+    <string name="msg_metered_refresh">Background refresh waits for an unmetered network.</string>
+    <string name="button_fetch_everything">Fetch everything</string>
+    <string name="button_fetch_text_only">Fetch text only</string>
+    <plurals name="msg_feed_failing">
+        <item quantity="one">Not refreshed for %d day</item>
+        <item quantity="other">Not refreshed for %d days</item>
+    </plurals>
 </resources>

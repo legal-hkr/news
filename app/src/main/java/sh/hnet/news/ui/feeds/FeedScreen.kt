@@ -2,6 +2,22 @@
 
 package sh.hnet.news.ui.feeds
 
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.LoadingIndicator
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
+import sh.hnet.news.ui.articles.shortDate
+import sh.hnet.news.ui.articles.dayOf
+import sh.hnet.news.ui.components.SettingsGroupHeader
+import java.time.LocalDate
+import java.time.ZoneId
+import androidx.compose.ui.platform.LocalConfiguration
 import android.content.ClipData
 import android.widget.Toast
 import androidx.annotation.DrawableRes
@@ -69,7 +85,7 @@ import sh.hnet.news.ui.components.settingsRowColors
 /**
  * A feed's page (SPEC §8): its name, address and folder, its content source, whether its images are
  * stored and whether it refreshes in the background; Unsubscribe at the end, at once with Undo.
- * "Keep articles" and "Last refresh" join with the stages that give them meaning.
+ * "Keep articles" joins with the stage that gives it meaning.
  */
 @Composable
 fun FeedScreen(feedId: Long, onBack: () -> Unit, snackbars: SnackbarHostState, messageScope: CoroutineScope) {
@@ -137,6 +153,7 @@ fun FeedScreen(feedId: Long, onBack: () -> Unit, snackbars: SnackbarHostState, m
                 )
             }
         }
+        LastRefresh(feed, onEditAddress = { editingAddress = true })
         // At once, with Undo (SPEC §8): the feed is gone for good when the snackbar goes without it
         DestructiveButton(stringResource(R.string.button_unsubscribe), R.drawable.ic_delete, {
             messageScope.launch {
@@ -167,6 +184,58 @@ fun FeedScreen(feedId: Long, onBack: () -> Unit, snackbars: SnackbarHostState, m
                     FolderChoice.None -> app.feeds.setFolder(feed.id, null)
                     is FolderChoice.Existing -> app.feeds.setFolder(feed.id, choice.folder.id)
                     is FolderChoice.New -> app.feeds.moveToNewFolder(feed.id, choice.name)
+                }
+            }
+        }
+    }
+}
+
+/**
+ * "Last refresh" (SPEC §8, §10): a plain line when the last one worked; after a failure – a single
+ * one too, this is where it is recorded – a card saying what went wrong and since when, with Edit
+ * address and Try again. Nothing before the feed's first refresh.
+ */
+@Composable
+private fun LastRefresh(feed: Feed, onEditAddress: () -> Unit) {
+    val context = LocalContext.current
+    val app = context.applicationContext as NewsApplication
+    val locale = LocalConfiguration.current.locales[0]
+    val zone = ZoneId.systemDefault()
+    val progress by app.refresher.progress.collectAsStateWithLifecycle()
+    val error = feed.lastError
+    val refreshedAt = feed.refreshedAt
+    if (error == null && refreshedAt == null) return
+    Column {
+        SettingsGroupHeader(stringResource(R.string.title_last_refresh))
+        if (error == null && refreshedAt != null) {
+            val time = timeOfDay(context, refreshedAt)
+            val moment = if (dayOf(refreshedAt, zone) == LocalDate.now(zone)) time else stringResource(R.string.label_date_time, shortDate(locale, refreshedAt, zone), time)
+            Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.surfaceContainer, modifier = Modifier.fillMaxWidth()) {
+                Text(stringResource(R.string.msg_refreshed, moment, feed.lastNew), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.padding(16.dp))
+            }
+        } else {
+            Surface(shape = MaterialTheme.shapes.large, color = MaterialTheme.colorScheme.errorContainer, contentColor = MaterialTheme.colorScheme.onErrorContainer, modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(start = 16.dp, end = 8.dp, top = 16.dp, bottom = 4.dp)) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        Icon(painterResource(R.drawable.ic_error), contentDescription = null)
+                        Column(Modifier.padding(end = 8.dp)) {
+                            Text(stringResource(failureSentence(error)), style = MaterialTheme.typography.bodyLarge)
+                            // Since the first of the failures in a row; the last success when there was one
+                            (feed.failingSince ?: refreshedAt)?.let {
+                                Text(stringResource(R.string.msg_not_refreshed_since, shortDate(locale, it, zone)), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 4.dp))
+                            }
+                        }
+                    }
+                    Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.End, verticalAlignment = Alignment.CenterVertically) {
+                        val buttons = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.onErrorContainer)
+                        if (progress != null) {
+                            LoadingIndicator(Modifier.size(24.dp), color = MaterialTheme.colorScheme.onErrorContainer)
+                            Text(stringResource(R.string.msg_refreshing_one), style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(start = 8.dp, end = 12.dp).heightIn(min = 48.dp).wrapContentHeight())
+                        } else {
+                            TextButton(onClick = onEditAddress, colors = buttons) { Text(stringResource(R.string.button_edit_address)) }
+                            TextButton(onClick = { app.refresher.start(listOf(feed.id)) }, colors = buttons) { Text(stringResource(R.string.button_try_again)) }
+                        }
+                    }
                 }
             }
         }

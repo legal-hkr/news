@@ -17,7 +17,7 @@ class MainActivity : ComponentActivity() {
             WhatsNew.recordStart(this)
             // Refresh when the app opens (SPEC §14.5), once per start of the activity
             val app = application as NewsApplication
-            app.appScope.launch { if (app.preferences.refreshSettings().onOpen) app.refresher.start() }
+            app.refreshRequests.onOpen()
         }
         setContent {
             NewsTheme { NewsApp() }

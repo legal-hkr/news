@@ -99,7 +99,7 @@ class ArticlesViewModel(private val app: NewsApplication) : ViewModel() {
         viewModelScope.launch { app.preferences.setUnreadOnly(on) }
     }
 
-    /** Refresh by the user: the source's feeds only (SPEC §4.8); the list is rebuilt. False when a refresh already runs. */
+    /** Refresh by the user: the source's feeds only (SPEC §4.8); the list is rebuilt. On a metered network it may wait for an answer first (§10.5). False when a refresh already runs. */
     fun refresh(): Boolean {
         rebuild()
         viewModelScope.launch {
@@ -108,7 +108,7 @@ class ArticlesViewModel(private val app: NewsApplication) : ViewModel() {
                 is Source.Feed -> listOf(current.id)
                 is Source.Folder -> app.feeds.feeds.first().filter { it.folderId == current.id }.map { it.id }
             }
-            app.refresher.start(ids)
+            app.refreshRequests.request(ids)
         }
         return app.refresher.progress.value == null
     }

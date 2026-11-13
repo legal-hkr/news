@@ -17,6 +17,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
@@ -106,6 +107,14 @@ fun NewsApp() {
 
     // The image viewer lies over the reader rather than being a page: it is closed by fading, not by the pages' slide
     var viewer by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
+    val refreshWaiting by app.refreshRequests.waiting.collectAsStateWithLifecycle()
+    if (refreshWaiting != null) {
+        MeteredDialog(
+            onEverything = { app.refreshRequests.answer(textOnly = false) },
+            onTextOnly = { app.refreshRequests.answer(textOnly = true) },
+            onDismiss = { app.refreshRequests.answer(null) },
+        )
+    }
 
     val back: () -> Unit = { if (stack.size > 1) stack.removeAt(stack.lastIndex) }
     val open: (Screen) -> Unit = { stack.add(it) }
