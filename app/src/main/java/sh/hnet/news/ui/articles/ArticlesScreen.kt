@@ -105,6 +105,7 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onAddFe
     val appLook by app.preferences.look.collectAsStateWithLifecycle(Look.THUMBNAIL)
     val appLines by app.preferences.previewLines.collectAsStateWithLifecycle(0)
     val unread by remember { app.articles.observeUnread() }.collectAsStateWithLifecycle(emptyList())
+    val ownOrder by app.preferences.ownOrder.collectAsStateWithLifecycle(false)
     val opml = rememberOpmlActions(snackbars, messageScope)
     var choosingSource by remember { mutableStateOf(false) }
     // The pull's own indicator shows only for a refresh the pull started
@@ -168,7 +169,7 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onAddFe
                         indicator = { PullToRefreshDefaults.LoadingIndicator(state = pull, isRefreshing = pulled && progress != null, modifier = Modifier.align(Alignment.TopCenter)) },
                     ) {
                         ArticleRows(
-                            rows, appLook, appLines, listState,
+                            rows, appLook, appLines, listState, { atTop },
                             Modifier.fillMaxSize().nestedScroll(topBar.nestedScrollConnection),
                         ) { row ->
                             model.setRead(listOf(row.article.id), true)
@@ -257,7 +258,7 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onAddFe
 
     if (choosingSource && allFeeds != null) {
         SourceSheet(
-            current = source ?: Source.All, feeds = allFeeds, folders = folders, unread = unread.associate { it.feedId to it.count },
+            current = source ?: Source.All, feeds = allFeeds, folders = folders, ownOrder = ownOrder, unread = unread.associate { it.feedId to it.count },
             onDismiss = { choosingSource = false },
         ) { picked ->
             choosingSource = false
@@ -285,7 +286,7 @@ private fun Tooltip(label: String, content: @Composable () -> Unit) {
 /** The rows under day headers (SPEC §4.2, §4.4): the rows of one day form a segmented group, 2 dp apart, outer corners 20, inner 6. */
 @Composable
 private fun ArticleRows(
-    rows: List<ArticleRow>, appLook: Look, appLines: Int, state: androidx.compose.foundation.lazy.LazyListState, modifier: Modifier, onOpen: (ArticleRow) -> Unit,
+    rows: List<ArticleRow>, appLook: Look, appLines: Int, state: androidx.compose.foundation.lazy.LazyListState, atTop: () -> Boolean, modifier: Modifier, onOpen: (ArticleRow) -> Unit,
 ) {
     val context = LocalContext.current
     val zone = remember { ZoneId.systemDefault() }
@@ -295,7 +296,7 @@ private fun ArticleRows(
     val firstId = rows.firstOrNull()?.article?.id
     var shownFirst by remember { mutableStateOf(firstId) }
     if (firstId != shownFirst) {
-        if (state.firstVisibleItemIndex == 0 && state.firstVisibleItemScrollOffset == 0) state.requestScrollToItem(0)
+        if (atTop()) state.requestScrollToItem(0)
         shownFirst = firstId
     }
     LazyColumn(state = state, modifier = modifier, contentPadding = PaddingValues(start = 16.dp, end = 16.dp, top = 4.dp, bottom = 120.dp)) {

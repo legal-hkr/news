@@ -55,6 +55,7 @@ class Preferences(private val context: Context) {
     private val sourceKey = stringPreferencesKey("source")
     private val unreadOnlyKey = booleanPreferencesKey("unread_only")
     private val oldestFirstKey = booleanPreferencesKey("oldest_first")
+    private val ownOrderKey = booleanPreferencesKey("own_feed_order")
     private val lookKey = stringPreferencesKey("look")
     private val previewLinesKey = intPreferencesKey("preview_lines")
     private val intervalKey = intPreferencesKey("refresh_interval_hours")
@@ -77,6 +78,11 @@ class Preferences(private val context: Context) {
     val oldestFirst: Flow<Boolean> = context.settings.data.map { it[oldestFirstKey] ?: false }.distinctUntilChanged()
 
     suspend fun setOldestFirst(on: Boolean) = context.settings.edit { it[oldestFirstKey] = on }
+
+    /** Feeds and folders in the user's own order rather than by name (SPEC §6.6). */
+    val ownOrder: Flow<Boolean> = context.settings.data.map { it[ownOrderKey] ?: false }.distinctUntilChanged()
+
+    suspend fun setOwnOrder(on: Boolean) = context.settings.edit { it[ownOrderKey] = on }
 
     /** The app's default look of rows; a feed can have its own (SPEC §4.10). */
     val look: Flow<Look> = context.settings.data.map { prefs -> Look.entries.firstOrNull { it.name == prefs[lookKey] } ?: Look.THUMBNAIL }.distinctUntilChanged()

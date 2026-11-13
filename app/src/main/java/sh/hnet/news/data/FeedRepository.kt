@@ -97,6 +97,11 @@ class FeedRepository(private val dao: FeedDao, private val icons: FeedIcons, pri
         dao.removedIds().forEach { purge(it) }
     }
 
+    /** The user's own order (SPEC §6.6): every feed, in the order given; a group's order is its feeds' order within it. */
+    suspend fun orderFeeds(ids: List<Long>) = dao.orderFeeds(ids)
+
+    suspend fun orderFolders(ids: List<Long>) = dao.orderFolders(ids)
+
     suspend fun renameFolder(id: Long, name: String) = dao.renameFolder(id, name)
 
     suspend fun setCollapsed(id: Long, collapsed: Boolean) = dao.setCollapsed(id, collapsed)

@@ -24,6 +24,11 @@ fun List<Feed>.byName(): List<Feed> = Collator.getInstance().let { collator -> s
 
 fun List<Folder>.foldersByName(): List<Folder> = Collator.getInstance().let { collator -> sortedWith { a, b -> collator.compare(a.name, b.name) } }
 
+/** Feeds and folders as Settings › Feeds orders them (SPEC §6.6): the user's own order, or by name. */
+fun List<Feed>.ordered(own: Boolean): List<Feed> = if (own) byName().sortedBy { it.position } else byName()
+
+fun List<Folder>.foldersOrdered(own: Boolean): List<Folder> = if (own) foldersByName().sortedBy { it.position } else foldersByName()
+
 /** Where a feed goes: no folder, one that exists, or a new one of this name. */
 sealed interface FolderChoice {
     data object None : FolderChoice

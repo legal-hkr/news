@@ -47,6 +47,14 @@
     <string name="button_add_feed">Dodaj kanał</string>
     <string name="button_import_opml">Importuj z OPML</string>
     <string name="button_export_opml">Eksportuj do OPML</string>
+    <string name="title_feed_order">Kolejność</string>
+    <string name="label_order_by_name">Według nazwy</string>
+    <string name="label_order_own">Własna</string>
+    <string name="desc_order_own">Aby zmienić kolejność, przytrzymaj kanał lub folder i przeciągnij.</string>
+    <string name="label_move_up">Przesuń wyżej</string>
+    <string name="label_move_down">Przesuń niżej</string>
+    <string name="label_move_to_top">Przenieś na początek</string>
+    <string name="label_move_to_bottom">Przenieś na koniec</string>
     <string name="content_description_collapse_folder">Zwiń folder</string>
     <string name="content_description_expand_folder">Rozwiń folder</string>
     <string name="content_description_more">Więcej</string>

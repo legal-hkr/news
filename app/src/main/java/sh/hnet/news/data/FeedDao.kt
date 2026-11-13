@@ -3,6 +3,7 @@ package sh.hnet.news.data
 import androidx.room3.Dao
 import androidx.room3.Insert
 import androidx.room3.Query
+import androidx.room3.Transaction
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -69,6 +70,19 @@ interface FeedDao {
 
     @Query("UPDATE feed SET ownLook = :own, look = :look, previewLines = :previewLines WHERE id = :id")
     suspend fun setLook(id: Long, own: Boolean, look: String?, previewLines: Int)
+
+    @Query("UPDATE feed SET position = :position WHERE id = :id")
+    suspend fun setFeedPosition(id: Long, position: Int)
+
+    @Query("UPDATE folder SET position = :position WHERE id = :id")
+    suspend fun setFolderPosition(id: Long, position: Int)
+
+    /** In one transaction, so the lists are told once, with the whole order in place. */
+    @Transaction
+    suspend fun orderFeeds(ids: List<Long>) = ids.forEachIndexed { position, id -> setFeedPosition(id, position) }
+
+    @Transaction
+    suspend fun orderFolders(ids: List<Long>) = ids.forEachIndexed { position, id -> setFolderPosition(id, position) }
 
     @Query("SELECT * FROM folder")
     fun observeFolders(): Flow<List<Folder>>

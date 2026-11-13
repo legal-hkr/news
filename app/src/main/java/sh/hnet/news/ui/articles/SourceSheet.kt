@@ -41,8 +41,8 @@ import sh.hnet.news.Source
 import sh.hnet.news.data.Feed
 import sh.hnet.news.data.Folder
 import sh.hnet.news.ui.components.TooltipIconButton
-import sh.hnet.news.ui.feeds.byName
-import sh.hnet.news.ui.feeds.foldersByName
+import sh.hnet.news.ui.feeds.foldersOrdered
+import sh.hnet.news.ui.feeds.ordered
 
 /**
  * The source sheet (SPEC §4.6): All, each folder with its feeds shown or hidden in place, then the
@@ -50,9 +50,9 @@ import sh.hnet.news.ui.feeds.foldersByName
  * zero is not drawn. Folders open collapsed, except the one holding the current source.
  */
 @Composable
-fun SourceSheet(current: Source, feeds: List<Feed>, folders: List<Folder>, unread: Map<Long, Int>, onDismiss: () -> Unit, onPick: (Source) -> Unit) {
-    val sortedFolders = remember(folders) { folders.foldersByName() }
-    val sortedFeeds = remember(feeds) { feeds.byName() }
+fun SourceSheet(current: Source, feeds: List<Feed>, folders: List<Folder>, ownOrder: Boolean, unread: Map<Long, Int>, onDismiss: () -> Unit, onPick: (Source) -> Unit) {
+    val sortedFolders = remember(folders, ownOrder) { folders.foldersOrdered(ownOrder) }
+    val sortedFeeds = remember(feeds, ownOrder) { feeds.ordered(ownOrder) }
     var expanded by remember { mutableStateOf(setOfNotNull((current as? Source.Feed)?.let { source -> feeds.firstOrNull { it.id == source.id }?.folderId })) }
 
     class Entry(val source: Source, val name: String, val count: Int, val feed: Feed? = null, val folder: Folder? = null)

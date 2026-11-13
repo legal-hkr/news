@@ -50,6 +50,14 @@
     <string name="button_add_feed">Add a feed</string>
     <string name="button_import_opml">Import from OPML</string>
     <string name="button_export_opml">Export to OPML</string>
+    <string name="title_feed_order">Order</string>
+    <string name="label_order_by_name">By name</string>
+    <string name="label_order_own">My own</string>
+    <string name="desc_order_own">To reorder, touch and hold a feed or folder, then drag.</string>
+    <string name="label_move_up">Move up</string>
+    <string name="label_move_down">Move down</string>
+    <string name="label_move_to_top">Move to top</string>
+    <string name="label_move_to_bottom">Move to bottom</string>
     <string name="content_description_collapse_folder">Collapse folder</string>
     <string name="content_description_expand_folder">Expand folder</string>
     <string name="content_description_more">More</string>
