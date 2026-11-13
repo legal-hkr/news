@@ -229,15 +229,15 @@
     <string name="desc_licenses">Składniki open source użyte w aplikacji</string>
     <string name="title_about_source">Kod źródłowy</string>
     <string name="msg_about_privacy">Aplikacja łączy się tylko ze stronami subskrybowanych kanałów: pobiera kanały, strony artykułów i obrazy. Nic innego nie opuszcza telefonu. Bez konta, bez analityki, bez innych usług.</string>
-    <string name="msg_extraction_failed">Nie udało się wyodrębnić pełnej strony. To jest treść z kanału.</string>
-    <string name="msg_page_missing">Pełna strona nie została pobrana. To jest treść z kanału.</string>
+    <string name="msg_extraction_failed">Nie udało się wyodrębnić treści ze strony artykułu. Wyświetlana jest treść z kanału.</string>
+    <string name="msg_page_missing">Pełna strona nie została pobrana. Wyświetlana jest treść z kanału.</string>
     <string name="button_try_again">Spróbuj ponownie</string>
     <string name="msg_fetching">Pobieranie…</string>
     <string name="button_fetch_full_page">Pobierz pełną stronę</string>
-    <string name="msg_not_on_phone">Tego artykułu nie ma w telefonie. Nie ma sieci, żeby go pobrać.</string>
+    <string name="msg_not_on_phone">Tego artykułu nie ma w telefonie, a bez sieci nie można go pobrać.</string>
     <string name="msg_not_on_phone_online">Tego artykułu nie ma w telefonie.</string>
     <string name="title_last_refresh">Ostatnie odświeżenie</string>
-    <string name="msg_not_refreshed_since">Nie odświeża się od: %s</string>
+    <string name="msg_not_refreshed_since">Nie odświeżono od: %s</string>
     <string name="button_edit_address">Zmień adres</string>
     <string name="error_address_not_found">Nie znaleziono adresu. Kanał został przeniesiony albo już nie istnieje.</string>
     <string name="error_not_a_feed">Pod tym adresem nie ma już kanału.</string>
@@ -245,13 +245,13 @@
     <string name="desc_feeds_with_problems">Kanały z problemami: %d</string>
     <string name="content_description_settings_problems">Ustawienia. Kanały z problemami: %d</string>
     <string name="title_metered_refresh">Odświeżyć w sieci z limitem danych?</string>
-    <string name="msg_metered_refresh">Odświeżanie w tle czeka na sieć bez limitu.</string>
+    <string name="msg_metered_refresh">Odświeżanie w tle czeka na sieć bez limitu danych.</string>
     <string name="button_fetch_everything">Pobierz wszystko</string>
     <string name="button_fetch_text_only">Pobierz tylko tekst</string>
     <plurals name="msg_feed_failing">
-        <item quantity="one">Nie odświeża się od %d dnia</item>
-        <item quantity="few">Nie odświeża się od %d dni</item>
-        <item quantity="many">Nie odświeża się od %d dni</item>
-        <item quantity="other">Nie odświeża się od %d dni</item>
+        <item quantity="one">Nie odświeżono od %d dnia</item>
+        <item quantity="few">Nie odświeżono od %d dni</item>
+        <item quantity="many">Nie odświeżono od %d dni</item>
+        <item quantity="other">Nie odświeżono od %d dnia</item>
     </plurals>
 </resources>

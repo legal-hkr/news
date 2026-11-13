@@ -232,8 +232,8 @@
     <string name="label_mit_license" translatable="false">MIT License</string>
     <string name="title_about_source">Source code</string>
     <string name="msg_about_privacy">News talks only to the sites of the feeds you subscribe to: it fetches their feeds, their article pages and their images. Nothing else leaves the phone. No account, no analytics, no other service.</string>
-    <string name="msg_extraction_failed">The full page could not be extracted. This is the feed’s content.</string>
-    <string name="msg_page_missing">The full page has not been fetched. This is the feed’s content.</string>
+    <string name="msg_extraction_failed">The article text could not be extracted from the page. Showing the feed content.</string>
+    <string name="msg_page_missing">The full page has not been fetched. Showing the feed content.</string>
     <string name="button_try_again">Try again</string>
     <string name="msg_fetching">Fetching…</string>
     <string name="button_fetch_full_page">Fetch full page</string>
@@ -242,8 +242,8 @@
     <string name="title_last_refresh">Last refresh</string>
     <string name="msg_not_refreshed_since">Not refreshed since: %s</string>
     <string name="button_edit_address">Edit address</string>
-    <string name="error_address_not_found">Address not found. The feed moved or is gone.</string>
-    <string name="error_not_a_feed">This address is not a feed any more.</string>
+    <string name="error_address_not_found">Address not found. The feed has moved or no longer exists.</string>
+    <string name="error_not_a_feed">There is no longer a feed at this address.</string>
     <string name="error_site_refuses">The site blocks the app.</string>
     <string name="desc_feeds_with_problems">Feeds with problems: %d</string>
     <string name="content_description_settings_problems">Settings. Feeds with problems: %d</string>
