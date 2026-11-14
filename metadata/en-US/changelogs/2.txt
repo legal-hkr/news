@@ -1,0 +1,12 @@
+v0.2.0
+
+New:
+- Widgets: Count, Newest article and Headlines, each for all feeds, a folder or a single feed
+- Optional badge on the app icon when new articles arrive, using one silent notification
+
+Changes:
+- An article’s lead image is shown once, where the author placed it
+- Logo in About without the white circle
+
+Fixes:
+- Articles from sites that set their text without paragraphs, or style their pages with utility classes, are now fetched in full

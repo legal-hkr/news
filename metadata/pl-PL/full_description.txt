@@ -19,10 +19,17 @@ Czytanie:
 - Przejście do następnego artykułu z listy bez wracania do niej
 
 Odświeżanie i pamięć:
-- Odświeżanie w tle w wybranych odstępach, bez powiadomień
+- Odświeżanie w tle w wybranych odstępach, bez dźwięków i bez zakłóceń
+- Opcjonalna plakietka na ikonie aplikacji informująca o nowych artykułach, oparta na jednym cichym powiadomieniu
 - Opcjonalnie tylko w sieciach bez limitu danych, z pytaniem przed ręcznym odświeżeniem w sieci z limitem
 - Kanał, który przestał się odświeżać, jest dyskretnie oznaczany
 - Artykuły przechowywane przez wybrany czas, dla całej aplikacji albo dla pojedynczego kanału
+
+Widżety:
+- Licznik: liczba nieprzeczytanych artykułów w małej pastylce
+- Najnowszy artykuł: najnowszy nieprzeczytany artykuł z obrazem
+- Nagłówki: najnowsze nieprzeczytane artykuły, tyle, ile mieści się w widżecie
+- Każdy może pokazywać wszystkie kanały, jeden folder albo jeden kanał; dotknięcie otwiera artykuł albo listę
 
 A także:
 - Kopia zapasowa kanałów, ustawień i zapisanych artykułów z tekstem w wybranym pliku

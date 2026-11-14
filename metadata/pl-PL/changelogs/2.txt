@@ -1,0 +1,12 @@
+v0.2.0
+
+Nowości:
+- Widżety: „Licznik”, „Najnowszy artykuł” i „Nagłówki”, każdy dla wszystkich kanałów, folderu albo kanału
+- Opcjonalna plakietka na ikonie aplikacji informująca o nowych artykułach (jedno ciche powiadomienie)
+
+Zmiany:
+- Obraz główny artykułu wyświetlany raz, w miejscu wybranym przez autora
+- Logo w „O aplikacji” bez białego koła
+
+Poprawki:
+- Artykuły ze stron bez akapitów albo z klasami narzędziowymi są teraz pobierane w całości

@@ -19,10 +19,17 @@ Reading:
 - Moving on to the next article without going back to the list
 
 Refresh and storage:
-- Refresh in the background at the interval you choose, without notifications
+- Refresh in the background at the interval you choose, without sound or interruptions
+- An optional badge on the app icon when new articles arrive, using one silent notification
 - Only on unmetered networks if you wish, with a question before a manual refresh on a metered one
 - A feed that keeps failing is quietly marked
 - Articles kept for as long as you set, for the whole app or for a single feed
+
+Widgets:
+- Count: the number of unread articles in a small pill
+- Newest article: the newest unread article with its image
+- Headlines: the newest unread articles, as many as fit in the widget
+- Each can show all feeds, one folder or a single feed; a tap opens the article or the list
 
 And also:
 - Backup and restore of feeds, settings and saved articles with their text, to a file you choose
