@@ -246,8 +246,10 @@
     <string name="content_description_settings_problems">Ustawienia. Kanały z problemami: %d</string>
     <string name="title_metered_refresh">Odświeżyć w sieci z limitem danych?</string>
     <string name="msg_metered_refresh">Odświeżanie w tle czeka na sieć bez limitu danych.</string>
-    <string name="button_fetch_everything">Pobierz wszystko</string>
-    <string name="button_fetch_text_only">Pobierz tylko tekst</string>
+    <string name="label_fetch_everything">Pobierz wszystko</string>
+    <string name="desc_fetch_everything">Tekst i obrazy</string>
+    <string name="label_fetch_text_only">Pobierz tylko tekst</string>
+    <string name="desc_fetch_text_only">Obrazy zostaną pobrane w sieci bez limitu danych</string>
     <plurals name="msg_feed_failing">
         <item quantity="one">Nie odświeżono od %d dnia</item>
         <item quantity="few">Nie odświeżono od %d dni</item>

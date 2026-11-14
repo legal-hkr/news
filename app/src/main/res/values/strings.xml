@@ -249,8 +249,10 @@
     <string name="content_description_settings_problems">Settings. Feeds with problems: %d</string>
     <string name="title_metered_refresh">Refresh on a metered network?</string>
     <string name="msg_metered_refresh">Background refresh waits for an unmetered network.</string>
-    <string name="button_fetch_everything">Fetch everything</string>
-    <string name="button_fetch_text_only">Fetch text only</string>
+    <string name="label_fetch_everything">Fetch everything</string>
+    <string name="desc_fetch_everything">Text and images</string>
+    <string name="label_fetch_text_only">Fetch text only</string>
+    <string name="desc_fetch_text_only">Images will be fetched on an unmetered network</string>
     <plurals name="msg_feed_failing">
         <item quantity="one">Not refreshed for %d day</item>
         <item quantity="other">Not refreshed for %d days</item>
