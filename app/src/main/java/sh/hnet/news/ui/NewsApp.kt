@@ -160,7 +160,11 @@ fun NewsApp() {
                 // The reader on that article; Back leads to the list set as above
                 is WidgetRequest.Article -> {
                     list(request.source)
-                    if (articles.openReaderFor(request.source, request.id)) open(Screen.Reader(request.id))
+                    val opened = articles.openReaderFor(request.source, request.id)
+                    if (opened) open(Screen.Reader(request.id))
+                    // The list was only passed on the way – unless the article is gone and the list is where this ends
+                    app.badge.passing = false
+                    if (!opened) app.badge.listShown(true)
                 }
                 WidgetRequest.AddFeed -> open(Screen.AddFeed())
             }

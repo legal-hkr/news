@@ -158,11 +158,12 @@ class BackupManager(private val app: NewsApplication, private val feedDao: FeedD
             oldFolders.mapNotNull { (id, name) -> folders[name]?.let { id to it } }.toMap(),
         )
         app.preferences.restoreSettings(backup.settings, source)
-        // The icon badge follows the restored switch
-        app.badge.update()
         RefreshJobService.schedule(app, app.preferences.refreshSettings())
         app.feeds.restored(feeds.values.toList())
         Widgets.update(app)
+        // The icon badge follows the restored switch and counts from here: the articles just restored are not news
+        app.badge.off()
+        app.badge.startOver()
         Restored(feeds.size, saved)
     }
 

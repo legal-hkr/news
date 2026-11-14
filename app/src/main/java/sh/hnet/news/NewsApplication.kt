@@ -60,13 +60,13 @@ class NewsApplication : Application() {
     /** What a tap on a widget asked for (SPEC-widgets §7.2), until the app's pages take it. */
     val widgetRequest = MutableStateFlow<WidgetRequest?>(null)
 
-    /** What the widgets were last drawn for: light or dark, and the language. */
-    private var drawnFor: Pair<Int, LocaleList>? = null
+    /** What the widgets were last drawn for: light or dark, the language, and the screen's density (their paddings and pictures are made in pixels). */
+    private var drawnFor: Triple<Int, LocaleList, Int>? = null
 
-    /** The theme or the language changed: the widgets' texts and pictures are made for the one they were drawn in. Other changes (a rotation, a keyboard) leave them alone. */
+    /** The theme, the language or the display size changed: the widgets' texts and pictures are made for the ones they were drawn in. Other changes (a rotation, a keyboard) leave them alone. */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        val now = (newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK) to newConfig.locales
+        val now = Triple(newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK, newConfig.locales, newConfig.densityDpi)
         if (now != drawnFor) {
             // The first change after the start is drawn too: what the widgets show may be from another language
             drawnFor = now

@@ -50,21 +50,17 @@ class IconBadge(private val app: NewsApplication, private val preferences: Prefe
         get() = stamps.getLong(AFTER, Long.MAX_VALUE)
         set(value) = stamps.edit { putLong(AFTER, value) }
 
-    /** Until when the next showing of the list does not count: it is only passed on the way to an article opened from a widget. */
-    @Volatile private var passingUntil = 0L
-
-    /** An article is being opened from a widget: the list comes up for a moment under the reader, which is not the user seeing it. */
-    fun openingArticle() {
-        passingUntil = System.currentTimeMillis() + PASSING_MS
-    }
+    /**
+     * An article is being opened from a widget: the list comes up for a moment under the reader,
+     * which is not the user seeing it. Set when the request arrives and cleared by whoever answers
+     * it, who also says so when the list turned out to be where the user ends up.
+     */
+    @Volatile var passing = false
 
     /** The list came on screen or left it: either way everything so far has been seen. */
     fun listShown(visible: Boolean) {
         if (visible) {
-            if (System.currentTimeMillis() < passingUntil) {
-                passingUntil = 0
-                return
-            }
+            if (passing) return
             listVisible = true
             startOver()
         } else if (listVisible) {
@@ -166,7 +162,6 @@ class IconBadge(private val app: NewsApplication, private val preferences: Prefe
         const val ID = 1
         const val AFTER = "badge_after_id"
         const val NAMED_FEEDS = 3
-        const val PASSING_MS = 5_000L
     }
 }
 

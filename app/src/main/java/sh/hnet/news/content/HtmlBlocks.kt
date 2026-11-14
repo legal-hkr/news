@@ -14,7 +14,7 @@ object HtmlBlocks {
     /** @param baseUrl What relative addresses of links and images are resolved against */
     fun convert(html: String, baseUrl: String): List<Block> = convert(Jsoup.parseBodyFragment(html, baseUrl).body())
 
-    fun convert(root: Element): List<Block> = Walker().apply { children(root); flush() }.out.let { tidy(it) }
+    fun convert(root: Element): List<Block> = Walker(splitting = true).apply { children(root); flush() }.out.let { tidy(it) }
 
     private val skipped = setOf("script", "style", "noscript", "template", "svg", "form", "input", "button", "select", "textarea", "nav", "head", "title", "link", "meta", "canvas", "map", "dialog")
     private val styles = mapOf(
@@ -27,8 +27,14 @@ object HtmlBlocks {
         "li", "dd", "dt", "tr", "td", "th", "tbody", "thead", "tfoot", "caption", "body", "html",
     )
 
-    private class Walker {
+    /**
+     * @param splitting Two line breaks in a row end the paragraph. Only for an article's own text: a walker
+     *   that gathers one piece of text (a caption, a table's cell) keeps the breaks as line ends
+     */
+    private class Walker(private val splitting: Boolean = false) {
         val out = mutableListOf<Block>()
+        /** Inside an inline element or a heading, whose text is one piece: ending the paragraph there would lose its style, its link or its level. */
+        private var whole = 0
         private val text = StringBuilder()
         private val spans = mutableListOf<Span>()
 
@@ -78,7 +84,7 @@ object HtmlBlocks {
                 tag == "br" -> when {
                     text.isBlank() -> Unit
                     // A second break in a row parts paragraphs: text set without <p> is written that way
-                    text.trimEnd(' ', '\t', '\u00A0').endsWith('\n') -> flush()
+                    splitting && whole == 0 && text.trimEnd(' ', '\t', '\u00A0').endsWith('\n') -> flush()
                     else -> text.append('\n')
                 }
                 tag in styles -> styled(styles.getValue(tag), null) { children(element) }
@@ -89,7 +95,9 @@ object HtmlBlocks {
                 }
                 tag.length == 2 && tag[0] == 'h' && tag[1] in '1'..'6' -> {
                     flush()
+                    whole++
                     children(element)
+                    whole--
                     // The source's six levels on our three; the article's title is above them all
                     rich()?.let { out += Block.Heading(when (tag[1]) { '1', '2' -> 1; '3' -> 2; else -> 3 }, it) }
                 }
@@ -138,7 +146,9 @@ object HtmlBlocks {
             val start = text.length
             // Blocks inside an inline element (a link around a div) end the span with the paragraph
             val before = out.size
+            whole++
             content()
+            whole--
             if (out.size == before && text.length > start) spans += Span(start, text.length, style, url)
         }
 

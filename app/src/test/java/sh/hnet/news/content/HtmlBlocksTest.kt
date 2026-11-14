@@ -26,6 +26,13 @@ class HtmlBlocksTest {
         assertEquals(listOf(p("Just text & more")), convert("Just text &amp; more"))
         // Two breaks in a row part paragraphs
         assertEquals(listOf(p("First paragraph\nits second line"), p("Second paragraph")), convert("First paragraph<br>its second line<br /> <br />Second paragraph<br>"))
+        // …but not inside an inline element, which would lose its style or its link, nor in a heading or a caption
+        assertEquals(listOf(p("First\n\nsecond", Span(0, 13, Style.ITALIC))), convert("<p><em>First<br><br>second</em></p>"))
+        assertEquals(listOf(Block.Heading(1, RichText("Title\n\nSubtitle"))), convert("<h2>Title<br><br>Subtitle</h2>"))
+        assertEquals(
+            listOf(Block.Image("https://site.example/a.jpg", caption = RichText("What it shows.\n\nPhoto: Someone"))),
+            convert("""<figure><img src="/a.jpg"><figcaption>What it shows.<br><br>Photo: Someone</figcaption></figure>"""),
+        )
         assertTrue(convert("  <p> </p><div><br></div>").isEmpty())
     }
 

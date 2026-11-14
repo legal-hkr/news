@@ -48,7 +48,7 @@ class MainActivity : ComponentActivity() {
         WidgetRequest.of(intent?.data)?.let {
             val app = application as NewsApplication
             // The list is passed on the way to the article: that is not the list being seen, and the icon badge keeps its count
-            if (it is WidgetRequest.Article) app.badge.openingArticle()
+            if (it is WidgetRequest.Article) app.badge.passing = true
             app.widgetRequest.value = it
             return
         }

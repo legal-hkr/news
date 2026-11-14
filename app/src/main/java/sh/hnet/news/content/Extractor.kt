@@ -8,6 +8,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
+import org.jsoup.nodes.Node
+import org.jsoup.nodes.TextNode
 import java.io.ByteArrayInputStream
 
 /** What was cut out of an article's page. */
@@ -72,13 +74,18 @@ object Extractor {
     private const val ARTICLE_INSIDE = "article, main, [itemprop=articleBody], [class*=articleBody], [class*=article-body], [class*=article--content], [class*=article__body], [class*=post-content], [class*=entry-content]"
 
     /** Class names by which the common style libraries hide an element in print. */
+    private val PRINT_BOXES = setOf("div", "section", "aside", "ul", "ol", "nav", "footer", "header")
     private val PRINT_HIDDEN = setOf("print:hidden", "d-print-none", "hidden-print", "print-hidden", "no-print", "noprint")
 
     private fun unlikely(element: Element): Boolean {
         if (element.normalName() in protectedTags) return false
-        // What a page hides when it is printed is not the article: related stories, share buttons, advertising
-        if (element.classNames().any { it in PRINT_HIDDEN }) return element.selectFirst(ARTICLE_INSIDE) == null
         val label = label(element)
+        // What a page hides when it is printed is not the article: related stories, share buttons, advertising. A box,
+        // that is – a picture or an embed left out of print to save ink is still the article's, and so is a container
+        // whose name says it holds the text
+        if (element.normalName() in PRINT_BOXES && element.classNames().any { it in PRINT_HIDDEN } && !keep.containsMatchIn(label)) {
+            return element.selectFirst(ARTICLE_INSIDE) == null
+        }
         if (label.isBlank()) return false
         if (!always.containsMatchIn(label) && (!negative.containsMatchIn(label) || keep.containsMatchIn(label))) return false
         return element.selectFirst(ARTICLE_INSIDE) == null
@@ -87,20 +94,49 @@ object Extractor {
     /** The length of the paragraphs' text inside: what an article is made of, as opposed to menus and captions. */
     private fun paragraphText(element: Element): Int =
         element.select("p, pre, blockquote").sumOf { p -> p.ownText().length + p.children().filter { it.normalName() !in setOf("p", "pre", "blockquote") }.sumOf { it.text().length } } +
-            (element.select(BROKEN_TEXT) + element).distinct().sumOf { lines(it).sumOf { line -> line.length } }
+            holders(element).sumOf { lines(it).sumOf { line -> line.length } }
 
     /** Containers that may hold their text as lines parted by line breaks instead of paragraphs. */
-    private const val BROKEN_TEXT = "div:has(> br), section:has(> br), article:has(> br), td:has(> br), main:has(> br)"
+    private val HOLDERS = setOf("div", "section", "article", "td", "main")
+
+    /** What a line of text does not run through: a break ends it, a block is not part of it. */
+    private val BLOCKS = setOf("p", "div", "section", "article", "main", "aside", "header", "footer", "ul", "ol", "li", "dl", "table", "figure", "pre", "blockquote", "h1", "h2", "h3", "h4", "h5", "h6", "form", "nav", "iframe", "script", "style")
+
+    /** The containers in [root] (itself among them) that hold line breaks, directly or inside inline elements (`<div><font>…<br>…</font></div>`). */
+    private fun holders(root: Element): List<Element> = root.select("br").mapNotNull { br ->
+        br.parents().firstOrNull { it.normalName() in HOLDERS || it.normalName() in BLOCKS }?.takeIf { it.normalName() in HOLDERS }
+    }.distinct()
 
     /**
-     * The lines of text an element holds directly, between its line breaks, when it is written that
-     * way: some sites set a whole article as one block with `<br>` between its paragraphs and no
-     * `<p>` at all. Each line counts as a paragraph does.
+     * The lines of text a container holds between its line breaks, when it is written that way: some
+     * sites set a whole article as one block with `<br>` between its paragraphs and no `<p>` at all.
+     * A line is what stands between two breaks, inline elements included (a link in a line does not
+     * make two of it). Each line counts as a paragraph does; one line with a break after it is a lead
+     * or a caption, not a text set in lines.
      */
-    private fun lines(element: Element): List<String> =
-        if (element.children().none { it.normalName() == "br" }) emptyList()
-        // One line with a break after it is a lead or a caption, not a text set in lines
-        else element.textNodes().map { it.text().trim() }.filter { it.length >= 25 }.takeIf { it.size >= 2 }.orEmpty()
+    private fun lines(holder: Element): List<String> {
+        val lines = ArrayList<String>()
+        val line = StringBuilder()
+        fun end() {
+            line.toString().trim().takeIf { it.length >= 25 }?.let { lines += it }
+            line.clear()
+        }
+        fun walk(node: Node) {
+            when {
+                node is TextNode -> line.append(node.text())
+                node !is Element -> Unit
+                node.normalName() == "br" -> end()
+                node.normalName() in BLOCKS -> end()
+                else -> node.childNodes().forEach { walk(it) }
+            }
+        }
+        holder.childNodes().forEach { walk(it) }
+        end()
+        return lines.takeIf { it.size >= 2 }.orEmpty()
+    }
+
+    /** What a paragraph, or a line of text set in lines, gives its container: more for length and for commas, which running text has and menus do not. */
+    private fun points(text: String): Float = 1f + text.count { it == ',' } + minOf(text.length / 100, 3)
 
     private fun linkDensity(element: Element): Float {
         val length = element.text().length
@@ -129,15 +165,15 @@ object Extractor {
         for (paragraph in document.select("p, pre, td, blockquote")) {
             val text = paragraph.text()
             if (text.length < 25) continue
-            val points = 1f + text.count { it == ',' } + minOf(text.length / 100, 3)
+            val points = points(text)
             val parent = paragraph.parent() ?: continue
             scores[parent] = (scores[parent] ?: base(parent)) + points
             parent.parent()?.let { grand -> scores[grand] = (scores[grand] ?: base(grand)) + points / 2 }
         }
         // Text set as lines between line breaks gives its points to the element that holds it, as paragraphs do to their parent
-        for (holder in document.select(BROKEN_TEXT)) {
+        for (holder in holders(document.body())) {
             for (line in lines(holder)) {
-                val points = 1f + line.count { it == ',' } + minOf(line.length / 100, 3)
+                val points = points(line)
                 scores[holder] = (scores[holder] ?: base(holder)) + points
                 holder.parent()?.let { parent -> scores[parent] = (scores[parent] ?: base(parent)) + points / 2 }
             }

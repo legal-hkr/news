@@ -118,6 +118,9 @@ sealed interface WidgetRequest {
  * in the system's language rather than the app's. Pictures come from the phone's store alone.
  */
 object Widgets {
+    /** The moment the redraw after midnight is set for; 0 for none. */
+    @Volatile private var dayChangeAt = 0L
+
     /** Asked for a redraw; several requests waiting become one. */
     private val requests = Channel<Unit>(Channel.CONFLATED)
     private val waiting = ConcurrentLinkedQueue<() -> Unit>()
@@ -144,8 +147,12 @@ object Widgets {
                         throw e
                     } catch (_: Exception) {
                         // Drawn again at the next request; a widget must never take the app down
+                    } catch (_: OutOfMemoryError) {
+                        // A picture too large to prepare: the same
+                    } finally {
+                        // Whoever waits is answered however the redraw ended: a receiver's process, a refresh's end
+                        answered.forEach { runCatching(it) }
                     }
-                    answered.forEach { it() }
                 }
             }
         }
@@ -183,7 +190,9 @@ object Widgets {
             val row = if (noFeeds) null else rows(source, 1).firstOrNull()
             // As wide as the widget is on this screen; the image view crops it to its box
             val width = (manager.getAppWidgetOptions(id).width() * density).toInt().coerceIn(MIN_PICTURE_PX, MAX_PICTURE_PX)
-            val picture = row?.article?.imageUrl?.let { app.images.load(it, width) }?.within(width)
+            // The box is as tall as the widget at most: a widget drawn tall keeps a tall picture
+            val height = (manager.getAppWidgetOptions(id).height() * density).toInt().coerceAtLeast(width)
+            val picture = row?.article?.imageUrl?.let { app.images.load(it, width) }?.within(width, height)
             drawn[id] = newest(app, source, noFeeds, unreadOf(source, feeds, unread), row, picture)
         }
         headlines.forEach { id ->
@@ -192,12 +201,12 @@ object Widgets {
             // As many strips as fill the widget's height: the list does not scroll
             val strips = strips(options.height())
             // About how tall a strip then is: what the thumbnail and the headline are fitted to
-            val stripDp = ((options.height() - LIST_TOP_DP).coerceAtLeast(STRIP_DP) - (strips - 1) * STRIP_GAP_DP) / strips
+            val stripDp = (room(options.height()) - (strips - 1) * STRIP_GAP_DP) / strips
             // The thumbnail fills the strip's height less its padding and keeps the designed 64 : 44
             val thumbnailDp = ((stripDp - 2 * STRIP_PADDING_DP) * 64 / 44).coerceIn(64, MAX_THUMBNAIL_DP)
             val list = if (noFeeds) emptyList() else rows(source, strips)
             val thumbnailWidth = (thumbnailDp * density).toInt()
-            val thumbnails = list.associate { row -> row.article.id to row.article.imageUrl?.let { app.images.load(it, thumbnailWidth) }?.within(thumbnailWidth) }
+            val thumbnails = list.associate { row -> row.article.id to row.article.imageUrl?.let { app.images.load(it, thumbnailWidth) }?.within(thumbnailWidth, thumbnailWidth) }
             // Narrower than three cells' worth there is no room for the age (§6)
             val showAge = options.width() >= AGE_FROM_DP
             drawn[id] = headlines(app, source, noFeeds, unreadOf(source, feeds, unread), list, thumbnails, showAge, strips, thumbnailDp, headlineLines = ((stripDp - 2 * TEXT_PADDING_DP - FEED_LINE_DP) / HEADLINE_LINE_DP).coerceIn(2, MAX_HEADLINE_LINES))
@@ -214,15 +223,15 @@ object Widgets {
     }
 
     /**
-     * The picture for a box no wider than [width]: scaled down to that width and, when it is still
-     * taller than wide, cut to a square from its middle. The store decodes to about the asked
-     * width, up to twice it, and a very tall picture (a long infographic) would otherwise go over
-     * the limit the system sets for all the bitmaps of one widget update (§3.5). The boxes are
-     * oblong, so nothing that would be shown is lost.
+     * The picture for a box of at most [width] by [height]: scaled down to that width and, when it
+     * is still taller than the box, cut to the box's height from its middle. The store decodes to
+     * about the asked width, up to twice it, and a very tall picture (a long infographic) would
+     * otherwise go over the limit the system sets for all the bitmaps of one widget update (§3.5).
+     * The image view crops to its box anyway, so nothing that would be shown is lost.
      */
-    private fun Bitmap.within(width: Int): Bitmap {
-        val scaled = if (this.width <= width) this else scale(width, (height.toLong() * width / this.width).toInt().coerceAtLeast(1))
-        return if (scaled.height <= scaled.width) scaled else Bitmap.createBitmap(scaled, 0, (scaled.height - scaled.width) / 2, scaled.width, scaled.width)
+    private fun Bitmap.within(width: Int, height: Int): Bitmap {
+        val scaled = if (this.width <= width) this else scale(width, (this.height.toLong() * width / this.width).toInt().coerceAtLeast(1))
+        return if (scaled.height <= height) scaled else Bitmap.createBitmap(scaled, 0, (scaled.height - height) / 2, scaled.width, height)
     }
 
     /**
@@ -234,11 +243,17 @@ object Widgets {
         val alarms = context.getSystemService(AlarmManager::class.java)
         val intent = PendingIntent.getBroadcast(context, REQUEST_DAY, Intent(context, HeadlinesWidget::class.java).setAction(ACTION_DAY_CHANGE), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
         if (!wanted) {
-            alarms.cancel(intent)
+            if (dayChangeAt != 0L) alarms.cancel(intent)
+            dayChangeAt = 0
             return
         }
         val zone = ZoneId.systemDefault()
-        alarms.set(AlarmManager.RTC, LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() + 60_000, intent)
+        val next = LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() + 60_000
+        // Set once for a midnight, not at every redraw; another time zone or clock gives another midnight
+        if (next != dayChangeAt) {
+            alarms.set(AlarmManager.RTC, next, intent)
+            dayChangeAt = next
+        }
     }
 
     /** The widget's width in dp as the launcher reports it (in portrait), or what a four-cell widget has when it doesn't. */
@@ -256,9 +271,11 @@ object Widgets {
      * scrolling list).
      */
     private fun strips(widgetHeight: Int): Int {
-        val room = (widgetHeight - LIST_TOP_DP).coerceAtLeast(STRIP_DP)
-        return ((room + STRIP_GAP_DP) / (STRIP_DP + STRIP_GAP_DP)).coerceAtLeast(1)
+        return ((room(widgetHeight) + STRIP_GAP_DP) / (STRIP_DP + STRIP_GAP_DP)).coerceAtLeast(1)
     }
+
+    /** The height the strips of a Headlines widget share, in dp: the widget's less the room the badge takes above the first strip. */
+    private fun room(widgetHeight: Int): Int = (widgetHeight - LIST_TOP_DP).coerceAtLeast(STRIP_DP)
 
     private fun unreadOf(source: Source, feeds: List<Feed>, unread: Map<Long, Int>): Int = when (source) {
         Source.All -> feeds.sumOf { unread[it.id] ?: 0 }
@@ -409,7 +426,11 @@ object Widgets {
  */
 abstract class NewsWidget : AppWidgetProvider() {
     override fun onReceive(context: Context, intent: Intent) {
-        if (intent.action == Widgets.ACTION_DAY_CHANGE) redraw(context) else super.onReceive(context, intent)
+        // A new day, or another time zone or clock: the Headlines' ages are words of the day and the zone they were drawn in
+        when (intent.action) {
+            Widgets.ACTION_DAY_CHANGE, Intent.ACTION_TIMEZONE_CHANGED, Intent.ACTION_TIME_CHANGED -> redraw(context)
+            else -> super.onReceive(context, intent)
+        }
     }
 
     override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) = redraw(context)
