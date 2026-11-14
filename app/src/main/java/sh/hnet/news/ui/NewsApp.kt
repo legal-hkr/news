@@ -59,7 +59,7 @@ import sh.hnet.news.ui.articles.ArticlesViewModel
 import sh.hnet.news.ui.settings.ArticleListSettingsScreen
 import sh.hnet.news.ui.settings.ReadingSettingsScreen
 import sh.hnet.news.ui.reader.ReaderScreen
-import sh.hnet.news.ui.viewer.ImageViewerScreen
+import sh.hnet.news.ui.viewer.ImageViewerHost
 import sh.hnet.news.ui.settings.RefreshSettingsScreen
 import sh.hnet.news.ui.components.LocalSnackbarLift
 import sh.hnet.news.ui.feeds.AddFeedScreen
@@ -113,7 +113,7 @@ fun NewsApp() {
     val snackbarLift = if (snackbars.currentSnackbarData != null) snackbarHeight else 0.dp
     val subscribed = stringResource(R.string.msg_subscribed)
 
-    // The image viewer lies over the reader rather than being a page: it is closed by fading, not by the pages' slide
+    // The image viewer lies over the reader rather than being a page: the image flies out of the article and back into it
     var viewer by remember { mutableStateOf<Pair<List<String>, Int>?>(null) }
     val refreshWaiting by app.refreshRequests.waiting.collectAsStateWithLifecycle()
     if (refreshWaiting != null) {
@@ -243,7 +243,7 @@ fun NewsApp() {
                 }
             }
             viewer?.let { (urls, index) ->
-                ImageViewerScreen(urls, index, onClose = { viewer = null }) { text ->
+                ImageViewerHost(urls, index, onClose = { viewer = null }) { text ->
                     scope.launch {
                         snackbars.currentSnackbarData?.dismiss()
                         snackbars.showSnackbar(text, duration = SnackbarDuration.Short)

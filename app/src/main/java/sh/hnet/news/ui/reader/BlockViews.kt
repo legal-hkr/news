@@ -2,6 +2,7 @@
 
 package sh.hnet.news.ui.reader
 
+import sh.hnet.news.ui.viewer.imageOrigin
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -289,6 +290,8 @@ private fun ImageView(block: Block.Image) {
         Box(
             (if (natural != null && !(read && picture == null)) Modifier.width(natural) else Modifier.fillMaxWidth())
                 .aspectRatio(ratio.coerceIn(0.4f, 6f))
+                // Where the viewer's flight starts and lands; only an image that opens in it
+                .imageOrigin(block.url.takeIf { picture != null && natural == null }, 12.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerHighest),
         ) {

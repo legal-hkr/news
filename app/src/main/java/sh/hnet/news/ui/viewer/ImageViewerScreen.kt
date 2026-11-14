@@ -2,6 +2,8 @@
 
 package sh.hnet.news.ui.viewer
 
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.runtime.LaunchedEffect
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
@@ -65,9 +67,16 @@ import java.io.File
  * its swipe down to close ([viewerSwipeToDismiss]) – a pager over the images, Back at the top
  * start, a counter when there are several, a tap toggles the overlays. Of ComfyChair's actions
  * News keeps Save (a copy into the phone's Pictures) and Share. Everything is read from the phone.
+ *
+ * @param onPage Called with the address of the image shown, at first and as the pager moves
+ * @param onLoaded Called with an image's address once its picture is drawn
+ * @param onRequestClose Asked first on closing: true when the host flies the image back to its place, else the viewer fades
  */
 @Composable
-fun ImageViewerScreen(urls: List<String>, start: Int, onClose: () -> Unit, onMessage: (String) -> Unit) {
+fun ImageViewerScreen(
+    urls: List<String>, start: Int, onClose: () -> Unit, onMessage: (String) -> Unit,
+    onPage: (String) -> Unit = {}, onLoaded: (String) -> Unit = {}, onRequestClose: (ViewerCloseFrom) -> Boolean = { false },
+) {
     val context = LocalContext.current
     val app = context.applicationContext as NewsApplication
     val scope = rememberCoroutineScope()
@@ -82,11 +91,18 @@ fun ImageViewerScreen(urls: List<String>, start: Int, onClose: () -> Unit, onMes
     val notSaved = stringResource(R.string.msg_image_not_saved)
     val effects = MaterialTheme.motionScheme.defaultEffectsSpec<Float>()
 
+    val density = LocalDensity.current
+    LaunchedEffect(pager.currentPage) { onPage(urls[pager.currentPage]) }
+    // Back into its place in the article when the host can fly it there, else a fade
     fun close() {
         if (dismiss.closing) return
-        scope.launch {
-            dismiss.fadeOut()
-            onClose()
+        if (onRequestClose(dismiss.closeFrom(with(density) { 28.dp.toPx() }))) {
+            dismiss.markClosing()
+        } else {
+            scope.launch {
+                dismiss.fadeOut()
+                onClose()
+            }
         }
     }
     BackHandler { close() }
@@ -111,7 +127,10 @@ fun ImageViewerScreen(urls: List<String>, start: Int, onClose: () -> Unit, onMes
             },
         ) {
             HorizontalPager(pager, Modifier.fillMaxSize(), key = { urls[it] }) { page ->
-                val bitmap by produceState<Bitmap?>(null, urls[page], widthPx) { value = app.images.load(urls[page], widthPx) }
+                val bitmap by produceState<Bitmap?>(null, urls[page], widthPx) {
+                    value = app.images.load(urls[page], widthPx)
+                    if (value != null) onLoaded(urls[page])
+                }
                 Box(Modifier.fillMaxSize().clipToBounds()) {
                     bitmap?.let { ImageViewer(it, onSingleTap = { overlays = !overlays }) }
                 }
