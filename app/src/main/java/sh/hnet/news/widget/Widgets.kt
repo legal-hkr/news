@@ -200,7 +200,7 @@ object Widgets {
             val thumbnails = list.associate { row -> row.article.id to row.article.imageUrl?.let { app.images.load(it, thumbnailWidth) }?.within(thumbnailWidth) }
             // Narrower than three cells' worth there is no room for the age (§6)
             val showAge = options.width() >= AGE_FROM_DP
-            drawn[id] = headlines(app, source, noFeeds, unreadOf(source, feeds, unread), list, thumbnails, showAge, strips, thumbnailDp, headlineLines = ((stripDp - 2 * STRIP_PADDING_DP) / HEADLINE_LINE_DP).coerceIn(2, MAX_HEADLINE_LINES))
+            drawn[id] = headlines(app, source, noFeeds, unreadOf(source, feeds, unread), list, thumbnails, showAge, strips, thumbnailDp, headlineLines = ((stripDp - 2 * TEXT_PADDING_DP - FEED_LINE_DP) / HEADLINE_LINE_DP).coerceIn(2, MAX_HEADLINE_LINES))
         }
         withContext(Dispatchers.Main) {
             drawn.forEach { (id, views) ->
@@ -248,8 +248,9 @@ object Widgets {
     private fun Bundle.height(): Int = getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT).takeIf { it > 0 } ?: 180
 
     /**
-     * How many strips a Headlines widget of this height shows: as many whole ones as fit at the
-     * designed 56 dp with 6 dp between them. The layout then shares the real height among them, so
+     * How many strips a Headlines widget of this height shows: as many whole ones as fit at 60 dp
+     * – the designed 56 and the room the feed's name over two lines of headline needs – with 6 dp
+     * between them. The layout then shares the real height among them, so
      * they are a little taller than designed and fill the widget exactly – no part of a further
      * strip at the bottom, and nothing to scroll (the owner's rules over §6's fixed 56 dp and
      * scrolling list).
@@ -352,6 +353,7 @@ object Widgets {
                         // A taller strip has a larger thumbnail and room for more of the headline
                         setViewLayoutWidth(R.id.strip_tile, thumbnailDp.toFloat(), TypedValue.COMPLEX_UNIT_DIP)
                         setInt(R.id.strip_headline, "setMaxLines", headlineLines)
+                        setTextViewText(R.id.strip_feed, row.feedTitle)
                         setTextViewText(R.id.strip_headline, article.title)
                         setTextViewText(R.id.strip_age, age)
                         setViewVisibility(R.id.strip_age, if (showAge) View.VISIBLE else View.GONE)
@@ -386,11 +388,14 @@ object Widgets {
     /** A strip's padding above and below its content, a headline's line, and how far both the thumbnail and the headline grow with a taller strip. */
     private const val STRIP_PADDING_DP = 6
     private const val HEADLINE_LINE_DP = 18
+    /** The text's own padding in a strip, and the feed's line with the space under it. */
+    private const val TEXT_PADDING_DP = 4
+    private const val FEED_LINE_DP = 15
     private const val MAX_HEADLINE_LINES = 4
     private const val MAX_THUMBNAIL_DP = 120
     private const val AGE_FROM_DP = 300
     /** A strip as designed, the gap between two, and the list's distance from the widget's top (§3.4, §6). */
-    private const val STRIP_DP = 56
+    private const val STRIP_DP = 60
     private const val STRIP_GAP_DP = 6
     private const val LIST_TOP_DP = 12
     private const val MIN_PICTURE_PX = 320
