@@ -75,7 +75,12 @@ object HtmlBlocks {
             val tag = element.normalName()
             when {
                 tag in skipped -> Unit
-                tag == "br" -> if (text.isNotBlank()) text.append('\n')
+                tag == "br" -> when {
+                    text.isBlank() -> Unit
+                    // A second break in a row parts paragraphs: text set without <p> is written that way
+                    text.trimEnd(' ', '\t', '\u00A0').endsWith('\n') -> flush()
+                    else -> text.append('\n')
+                }
                 tag in styles -> styled(styles.getValue(tag), null) { children(element) }
                 tag == "a" -> {
                     val address = element.absUrl("href").takeIf { it.startsWith("http", ignoreCase = true) || it.startsWith("mailto:", ignoreCase = true) }

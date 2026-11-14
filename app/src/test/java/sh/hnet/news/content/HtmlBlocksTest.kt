@@ -24,6 +24,8 @@ class HtmlBlocksTest {
     fun `text without paragraphs, with line breaks`() {
         assertEquals(listOf(p("One line\nanother line"), p("After a div")), convert("One line<br>another   line<div>After a div</div>"))
         assertEquals(listOf(p("Just text & more")), convert("Just text &amp; more"))
+        // Two breaks in a row part paragraphs
+        assertEquals(listOf(p("First paragraph\nits second line"), p("Second paragraph")), convert("First paragraph<br>its second line<br /> <br />Second paragraph<br>"))
         assertTrue(convert("  <p> </p><div><br></div>").isEmpty())
     }
 

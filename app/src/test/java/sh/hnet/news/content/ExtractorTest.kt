@@ -114,6 +114,54 @@ class ExtractorTest {
     }
 
     @Test
+    fun `an article set as lines between breaks wins over the author's note in a paragraph`() {
+        val extracted = Extractor.extract(
+            """
+            <html><body>
+            <article class="full">
+              <h1>Article</h1>
+              <div class="author">Written by Someone on 14 November 2026.</div>
+              <div class="content">First. ${sentence.repeat(2)}<br /> <br />Second. ${sentence.repeat(2)}<br /> <br />Last. ${sentence}<br /></div>
+            </article>
+            <div id="about-author"><div class="text"><p>Someone is the principal author of this site, and founded it, and has written, tested, measured and published more than twenty thousand articles since. ${sentence}</p></div></div>
+            </body></html>
+            """.trimIndent(),
+            url,
+        )
+        assertNotNull(extracted)
+        val text = Blocks.text(extracted!!.blocks)
+        assertTrue(text.startsWith("First."))
+        assertTrue("Last." in text)
+        assertFalse("principal author" in text)
+        assertEquals(3, extracted.blocks.count { it is Block.Paragraph })
+    }
+
+    @Test
+    fun `utility class names are not read as what an element is, and what is hidden in print goes`() {
+        val extracted = Extractor.extract(
+            """
+            <html><body>
+            <div class="mx-auto flex print:pt-0 top-[104px]">
+              <main class="w-full lg:pr-7">
+                <div class="md:hidden"><p>First. ${sentence.repeat(3)}</p></div>
+                <div class="pb-5 print:hidden"><p>Related. ${sentence.repeat(3)}</p></div>
+                <div class="hidden md:block"><p>Wide screens only. ${sentence.repeat(3)}</p></div>
+                <p>Last. ${sentence.repeat(3)}</p>
+              </main>
+            </div>
+            </body></html>
+            """.trimIndent(),
+            url,
+        )
+        assertNotNull(extracted)
+        val text = Blocks.text(extracted!!.blocks)
+        assertTrue(text.startsWith("First."))
+        assertTrue("Last." in text)
+        assertFalse("Related." in text)
+        assertFalse("Wide screens only." in text)
+    }
+
+    @Test
     fun `a page without article markup is cut by its paragraphs`() {
         val extracted = Extractor.extract(page("""<div id="tresc"><p>Pierwszy. ${sentence.repeat(2)}</p><p>Drugi. ${sentence.repeat(2)}</p><p>Trzeci. ${sentence.repeat(2)}</p></div>"""), url)
         val text = Blocks.text(extracted!!.blocks)
