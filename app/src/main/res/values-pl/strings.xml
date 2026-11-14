@@ -318,4 +318,12 @@
     <string name="desc_import_subscriptions">Plik z innego czytnika</string>
     <string name="button_restore_backup">Przywróć kopię zapasową</string>
     <string name="desc_restore_from_backup">Plik zapisany w tej aplikacji</string>
+    <string name="widget_count_name">Licznik</string>
+    <string name="widget_count_description">Liczba nieprzeczytanych artykułów.</string>
+    <string name="label_add_first_feed">Dodaj pierwszy kanał</string>
+    <string name="content_description_widget_unread">Newsy. Nieprzeczytane: %d</string>
+    <string name="content_description_widget_unread_many">Newsy. Nieprzeczytane: ponad 99</string>
+    <string name="content_description_widget_all_read">Newsy. Wszystko przeczytane.</string>
+    <string name="msg_widget_unread_only">Widżet pokazuje tylko nieprzeczytane artykuły.</string>
+    <string name="label_add_widget">Dodaj widżet</string>
 </resources>

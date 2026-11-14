@@ -1,5 +1,8 @@
 package sh.hnet.news
 
+import android.content.res.Configuration
+import sh.hnet.news.widget.WidgetRequest
+import sh.hnet.news.widget.Widgets
 import sh.hnet.news.backup.BackupManager
 import android.content.SharedPreferences
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -51,6 +54,15 @@ class NewsApplication : Application() {
 
     val storage: Storage by lazy { Storage(database.feedDao(), articles, images, preferences) }
 
+    /** What a tap on a widget asked for (SPEC-widgets §7.2), until the app's pages take it. */
+    val widgetRequest = MutableStateFlow<WidgetRequest?>(null)
+
+    /** The theme or the language changed: the widgets are drawn from resources that changed with it. */
+    override fun onConfigurationChanged(newConfig: Configuration) {
+        super.onConfigurationChanged(newConfig)
+        Widgets.update(this)
+    }
+
     /** An address shared to the app from a browser (SPEC §7.3), until the add page takes it. */
     val sharedAddress = MutableStateFlow<String?>(null)
 
@@ -61,7 +73,13 @@ class NewsApplication : Application() {
 
     val search: SearchIndex by lazy { SearchIndex(articles) }
 
-    val refresher: Refresher by lazy { Refresher(database.feedDao(), articles, http, images, preferences, search, appScope).also { it.afterRun = { storage.removeOld() } } }
+    val refresher: Refresher by lazy { Refresher(database.feedDao(), articles, http, images, preferences, search, appScope).also {
+            it.afterRun = {
+                storage.removeOld()
+                Widgets.update(this)
+            }
+        }
+    }
 
     val refreshRequests: RefreshRequests by lazy { RefreshRequests(this, preferences, refresher, appScope) }
 

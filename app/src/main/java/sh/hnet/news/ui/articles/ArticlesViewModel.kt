@@ -1,5 +1,6 @@
 package sh.hnet.news.ui.articles
 
+import sh.hnet.news.widget.Widgets
 import sh.hnet.news.content.Fold
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -192,7 +193,11 @@ class ArticlesViewModel(private val app: NewsApplication) : ViewModel() {
     /** Every unread article the list shows becomes read; their ids, for Undo. */
     fun markAllRead(): List<Long> {
         val ids = list.value?.rows.orEmpty().filter { !it.article.read }.map { it.article.id }
-        setRead(ids, true)
+        // The widgets follow at once (SPEC-widgets §3.6), not only when the app leaves the foreground
+        viewModelScope.launch {
+            ids.chunked(500).forEach { app.articles.setRead(it, true) }
+            Widgets.update(app)
+        }
         return ids
     }
 }

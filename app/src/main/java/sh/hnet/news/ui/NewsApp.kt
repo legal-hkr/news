@@ -2,6 +2,7 @@
 
 package sh.hnet.news.ui
 
+import sh.hnet.news.widget.WidgetRequest
 import androidx.compose.runtime.saveable.rememberSaveable
 import sh.hnet.news.ui.feeds.rememberOpmlActions
 import sh.hnet.news.ui.welcome.WelcomeScreen
@@ -133,6 +134,26 @@ fun NewsApp() {
             app.sharedAddress.value = null
             stack.removeAll { it is Screen.AddFeed }
             open(Screen.AddFeed(address))
+        }
+    }
+
+    // A tap on a widget (SPEC-widgets §7.2): the list on the widget's source with "Unread only" on, "Saved only" off and
+    // the search closed – the list's own filters, so it stays that way – or Add a feed from a widget with no feeds yet
+    val widgetRequest by app.widgetRequest.collectAsStateWithLifecycle()
+    LaunchedEffect(widgetRequest) {
+        val request = widgetRequest ?: return@LaunchedEffect
+        app.widgetRequest.value = null
+        while (stack.size > 1) stack.removeAt(stack.lastIndex)
+        viewer = null
+        when (request) {
+            is WidgetRequest.List -> {
+                articles.closeSearch()
+                app.preferences.setSource(request.source)
+                app.preferences.setUnreadOnly(true)
+                app.preferences.setSavedOnly(false)
+                articles.rebuild()
+            }
+            WidgetRequest.AddFeed -> open(Screen.AddFeed())
         }
     }
 

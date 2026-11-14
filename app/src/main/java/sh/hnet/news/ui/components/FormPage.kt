@@ -54,6 +54,7 @@ import sh.hnet.news.R
  *
  * @param busy The button shows a loading indicator and Back is disabled
  * @param confirmIcon Shown before the button's label
+ * @param navigationIcon The top bar's control with its [navigationLabel]: Back, or Close on a page that is left without a result
  */
 @Composable
 fun FormPage(
@@ -64,6 +65,8 @@ fun FormPage(
     confirmEnabled: Boolean = true,
     busy: Boolean = false,
     @DrawableRes confirmIcon: Int? = null,
+    @DrawableRes navigationIcon: Int = R.drawable.ic_arrow_back,
+    navigationLabel: String = stringResource(R.string.content_description_back),
     contentSpacing: Dp = 22.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
@@ -75,7 +78,7 @@ fun FormPage(
                     modifier = Modifier.fillMaxWidth().padding(start = 4.dp, end = 16.dp, top = 8.dp, bottom = 8.dp),
                 ) {
                     if (onBack != null) {
-                        TooltipIconButton(R.drawable.ic_arrow_back, stringResource(R.string.content_description_back), onBack, enabled = !busy)
+                        TooltipIconButton(navigationIcon, navigationLabel, onBack, enabled = !busy)
                     }
                     Text(title, style = MaterialTheme.typography.titleLarge, modifier = Modifier.padding(start = 8.dp).semantics { heading() })
                 }

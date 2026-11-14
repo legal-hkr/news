@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Count (SPEC-widgets §4): one cell, not resizable. Its source is chosen on a page when it is placed and again from the launcher's edit button. -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="sh.hnet.news.widget.WidgetSetupActivity"
+    android:description="@string/widget_count_description"
+    android:initialLayout="@layout/widget_count"
+    android:minWidth="40dp"
+    android:minHeight="40dp"
+    android:previewLayout="@layout/widget_count_preview"
+    android:resizeMode="none"
+    android:targetCellWidth="1"
+    android:targetCellHeight="1"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable" />
