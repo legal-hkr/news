@@ -1,12 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Headlines (SPEC-widgets §6): four by two cells, resizable in both directions down to three by one (one strip). -->
+<!-- Headlines (SPEC-widgets §6): four by two cells, resizable in both directions down to three by one (one strip). The least width is given in dp and the launcher turns it into cells: 200 dp is more than two cells and no more than three on grids of four and of five columns. -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:configure="sh.hnet.news.widget.WidgetSetupActivity"
     android:description="@string/widget_headlines_description"
     android:initialLayout="@layout/widget_headlines_state"
     android:minWidth="250dp"
     android:minHeight="110dp"
-    android:minResizeWidth="180dp"
+    android:minResizeWidth="200dp"
     android:minResizeHeight="56dp"
     android:previewLayout="@layout/widget_headlines_preview"
     android:resizeMode="horizontal|vertical"
