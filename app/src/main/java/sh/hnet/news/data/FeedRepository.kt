@@ -1,5 +1,8 @@
 package sh.hnet.news.data
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -50,8 +53,19 @@ class FeedRepository(private val dao: FeedDao, private val icons: FeedIcons, pri
         return id
     }
 
+    /** A few at a time: an import of hundreds of feeds must not ask for hundreds of pages at once. */
+    private val iconLimit = Semaphore(PARALLEL_ICONS)
+
     private fun fetchIcon(id: Long, url: String, siteUrl: String?, iconUrl: String?) = scope.launch(Dispatchers.IO) {
-        if (icons.fetch(id, url, siteUrl, iconUrl)) dao.setHasIcon(id, true)
+        iconLimit.withPermit {
+            try {
+                if (icons.fetch(id, url, siteUrl, iconUrl)) dao.setHasIcon(id, true)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                // No icon: the feed keeps its stand-in
+            }
+        }
     }
 
     private suspend fun nextPosition(): Int = (dao.feeds().maxOfOrNull { it.position } ?: -1) + 1
@@ -159,5 +173,9 @@ class FeedRepository(private val dao: FeedDao, private val icons: FeedIcons, pri
         val folders = dao.folders().associate { it.id to it.name }
         return dao.feeds().sortedWith(compareBy(String.CASE_INSENSITIVE_ORDER) { it.title })
             .map { OpmlFeed(it.title, it.url, it.siteUrl, it.folderId?.let { id -> folders[id] }) }
+    }
+
+    private companion object {
+        const val PARALLEL_ICONS = 4
     }
 }

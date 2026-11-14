@@ -139,14 +139,20 @@ object HtmlBlocks {
 
         private fun figure(element: Element) {
             flush()
-            val caption = element.selectFirst("figcaption")?.let { Walker().apply { children(it) }.rich() }
+            // The figure's own caption: not one of a figure inside it (a gallery of figures), though it may stand in a wrapper
+            val own = element.select("figcaption").firstOrNull { caption -> caption.parents().firstOrNull { it.normalName() == "figure" } === element }
+            val caption = own?.let { Walker().apply { children(it) }.rich() }
+            // Out of the way while the figure's content is walked, so it is not read a second time as text
+            own?.remove()
             val before = out.size
-            element.childNodes().forEach { child -> if (!(child is Element && child.normalName() == "figcaption")) node(child) }
+            element.childNodes().forEach { child -> node(child) }
             flush()
             // The caption belongs to the figure's last image; a figure of something else (a quote, a table) keeps it as text
             val last = out.indexOfLast { it is Block.Image }
             if (caption != null) {
-                if (last >= before) out[last] = (out[last] as Block.Image).copy(caption = caption) else out += Block.Paragraph(caption)
+                // An image that has its own caption already (a figure inside this one) keeps it
+                val image = (out.getOrNull(last) as? Block.Image)?.takeIf { last >= before && it.caption == null }
+                if (image != null) out[last] = image.copy(caption = caption) else out += Block.Paragraph(caption)
             }
         }
 

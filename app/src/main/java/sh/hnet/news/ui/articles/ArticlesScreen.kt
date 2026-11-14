@@ -146,7 +146,8 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
     var choosingSource by remember { mutableStateOf(false) }
     // The pull's own indicator shows only for a refresh the pull started
     var pulled by remember { mutableStateOf(false) }
-    if (progress == null) pulled = false
+    // When the refresh ends, not on every composition: the pull's refresh may not have begun yet
+    LaunchedEffect(progress) { if (progress == null) pulled = false }
     val listState = rememberLazyListState()
     val pull = rememberPullToRefreshState()
     val markedRead = stringResource(R.string.msg_marked_read)
@@ -183,8 +184,10 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
             title = { Text(stringResource(R.string.title_articles), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() }) },
             subtitle = { subtitle?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
             actions = {
-                if (!allFeeds.isNullOrEmpty()) {
+                if (!allFeeds.isNullOrEmpty() || (stored ?: 0) > 0) {
                     TooltipIconButton(R.drawable.ic_search, stringResource(R.string.content_description_search), { model.openSearch() })
+                }
+                if (!allFeeds.isNullOrEmpty()) {
                     if (progress != null) {
                         // In place of the Refresh button while a refresh runs; it does not respond (SPEC §4.8)
                         val refreshing = stringResource(R.string.msg_refreshing_one)
@@ -203,7 +206,8 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
         when {
             // Not read yet: nothing, rather than a flash of the wrong state
             allFeeds == null || source == null || unreadOnly == null -> Unit
-            allFeeds.isEmpty() -> NoFeeds(onAddFeed, opml.import)
+            // Saved articles of feeds unsubscribed from are still the list's (SPEC §13.2): "No feeds yet" only with nothing to show
+            allFeeds.isEmpty() && (stored ?: 0) == 0 -> NoFeeds(onAddFeed, opml.import)
             else -> Box(Modifier.fillMaxSize()) {
                 when {
                     rows == null -> Unit

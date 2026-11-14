@@ -33,7 +33,8 @@ interface ArticleDao {
     @Query("SELECT a.feedId AS feedId, COUNT(*) AS count FROM article a JOIN feed f ON f.id = a.feedId WHERE a.read = 0 AND a.gone = 0 AND f.removedAt IS NULL GROUP BY a.feedId")
     fun observeUnread(): Flow<List<UnreadCount>>
 
-    @Query("SELECT COUNT(*) FROM article a JOIN feed f ON f.id = a.feedId WHERE a.gone = 0 AND f.removedAt IS NULL")
+    /** What the list could show at its widest: saved articles of feeds unsubscribed from are among it (SPEC §13.2). */
+    @Query("SELECT COUNT(*) FROM article a JOIN feed f ON f.id = a.feedId WHERE a.gone = 0 AND (f.removedAt IS NULL OR a.saved = 1)")
     fun observeCount(): Flow<Int>
 
     @Query("SELECT guid FROM article WHERE feedId = :feedId")
@@ -83,6 +84,17 @@ interface ArticleDao {
 
     @Query("DELETE FROM article_search WHERE articleId NOT IN (SELECT id FROM article)")
     suspend fun forgetGone()
+
+    @Query("DELETE FROM article_content WHERE articleId NOT IN (SELECT id FROM article)")
+    suspend fun forgetOrphans()
+
+    // Which images the articles that stay still use (data/Storage)
+
+    @Query("SELECT imageUrl FROM article WHERE gone = 0 AND imageUrl IS NOT NULL")
+    suspend fun leadImagesInUse(): List<String>
+
+    @Query("SELECT * FROM article_content ORDER BY articleId LIMIT :limit OFFSET :offset")
+    suspend fun contentsPage(limit: Int, offset: Int): List<ArticleContent>
 
     @Query("SELECT COUNT(*) FROM article WHERE feedId = :feedId")
     suspend fun count(feedId: Long): Int

@@ -1,5 +1,6 @@
 package sh.hnet.news.feed
 
+import org.jsoup.nodes.Document
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
@@ -62,7 +63,7 @@ class FeedIcons(private val context: Context, private val http: HttpFetcher) {
         } catch (_: FetchFailure) {
             return emptyList()
         }
-        return IconLinks.find(Jsoup.parse(ByteArrayInputStream(response.body), null, response.url).outerHtml(), response.url)
+        return IconLinks.find(Jsoup.parse(ByteArrayInputStream(response.body), null, response.url))
     }
 
     private fun origin(address: String): String? = try {
@@ -81,8 +82,10 @@ class FeedIcons(private val context: Context, private val http: HttpFetcher) {
 
 /** The icons a page names in its head, the largest declared size first; vector icons are left out (not decodable here). */
 object IconLinks {
-    fun find(html: String, url: String): List<String> =
-        Jsoup.parse(html, url).select("link[href]").mapNotNull { link ->
+    fun find(html: String, url: String): List<String> = find(Jsoup.parse(html, url))
+
+    fun find(document: Document): List<String> =
+        document.select("link[href]").mapNotNull { link ->
             val rel = link.attr("rel").lowercase().split(Regex("\\s+"))
             if ("icon" !in rel && "apple-touch-icon" !in rel && "apple-touch-icon-precomposed" !in rel) return@mapNotNull null
             val address = link.absUrl("href").takeIf { it.startsWith("http", ignoreCase = true) } ?: return@mapNotNull null

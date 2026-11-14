@@ -9,6 +9,7 @@ import android.content.Context
 import android.net.NetworkCapabilities
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import sh.hnet.news.NewsApplication
 import sh.hnet.news.RefreshSettings
 
@@ -19,11 +20,19 @@ import sh.hnet.news.RefreshSettings
  */
 class RefreshJobService : JobService() {
     private var waiting: Job? = null
+    /** The refresh this job started: the only one it may stop. */
+    private var own: Job? = null
 
     override fun onStartJob(params: JobParameters): Boolean {
         val app = application as NewsApplication
-        val refresh = app.refresher.start(background = true) ?: app.refresher.current() ?: return false
         waiting = app.appScope.launch {
+            // A refresh by the user may be under way (one feed, perhaps): the background one comes after it, not instead of it
+            var refresh = app.refresher.start(background = true)
+            while (refresh == null) {
+                app.refresher.current()?.join() ?: yield()
+                refresh = app.refresher.start(background = true)
+            }
+            own = refresh
             refresh.join()
             jobFinished(params, false)
         }
@@ -33,7 +42,7 @@ class RefreshJobService : JobService() {
     /** The conditions are gone (the network changed, the time ran out): what was fetched stays, the rest waits for the next run. */
     override fun onStopJob(params: JobParameters): Boolean {
         waiting?.cancel()
-        (application as NewsApplication).refresher.current()?.cancel()
+        own?.cancel()
         return false
     }
 

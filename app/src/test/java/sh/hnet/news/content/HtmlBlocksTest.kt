@@ -69,6 +69,28 @@ class HtmlBlocksTest {
     }
 
     @Test
+    fun `a gallery's figures keep their own captions, a wrapped caption is not read twice`() {
+        assertEquals(
+            listOf(
+                Block.Image("https://site.example/one.jpg", caption = RichText("One")),
+                Block.Image("https://site.example/two.jpg", caption = RichText("Two")),
+                Block.Paragraph(RichText("The gallery")),
+                Block.Image("https://site.example/three.jpg", caption = RichText("Three")),
+            ),
+            convert(
+                """
+                <figure class="gallery">
+                  <figure><img src="/one.jpg"><figcaption>One</figcaption></figure>
+                  <figure><img src="/two.jpg"><figcaption>Two</figcaption></figure>
+                  <figcaption>The gallery</figcaption>
+                </figure>
+                <figure><div><img src="/three.jpg"><figcaption>Three</figcaption></div></figure>
+                """,
+            ),
+        )
+    }
+
+    @Test
     fun `quotes, lists, code, tables and rules`() {
         val blocks = convert(
             """

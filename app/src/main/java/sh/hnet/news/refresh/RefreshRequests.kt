@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.yield
 import sh.hnet.news.Preferences
 
 /**
@@ -66,7 +67,11 @@ class RefreshRequests(private val context: Context, private val preferences: Pre
     }
 
     private suspend fun start(feedIds: Collection<Long>?, textOnly: Boolean, afterCurrent: Boolean) {
-        if (afterCurrent) refresher.current()?.join()
-        refresher.start(feedIds, textOnly = textOnly)
+        if (!afterCurrent) {
+            refresher.start(feedIds, textOnly = textOnly)
+            return
+        }
+        // Several requests may wait for the same refresh, and only one of them starts next: the others wait again
+        while (refresher.start(feedIds, textOnly = textOnly) == null) refresher.current()?.join() ?: yield()
     }
 }

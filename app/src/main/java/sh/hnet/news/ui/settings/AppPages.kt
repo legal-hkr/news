@@ -2,6 +2,7 @@
 
 package sh.hnet.news.ui.settings
 
+import sh.hnet.news.refresh.RefreshJobService
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.text.AnnotatedString
@@ -100,6 +101,8 @@ fun ResetScreen(onBack: () -> Unit) {
                 confirming = false
                 scope.launch {
                     preferences.restoreDefaults()
+                    // The background job follows the settings it was scheduled from
+                    RefreshJobService.schedule(context.applicationContext, preferences.refreshSettings())
                     Toast.makeText(context, done, Toast.LENGTH_SHORT).show()
                     // Last: a language change recreates the activity
                     if (currentLanguageTag(context).isNotEmpty()) setLanguage(context, "")

@@ -50,7 +50,13 @@ class ImageStore(context: Context, private val http: HttpFetcher) {
             if (bounds(body) == null) return@withContext Fetched.NotAPicture
             // Written whole or not at all: a half-written file would pass for the image
             val partial = File(directory, file.name + ".part")
-            partial.writeBytes(body)
+            try {
+                partial.writeBytes(body)
+            } catch (_: java.io.IOException) {
+                // The phone's storage is full: not stored this time
+                partial.delete()
+                return@withContext Fetched.Failed
+            }
             partial.renameTo(file)
         }
         val options = BitmapFactory.Options().apply { inJustDecodeBounds = true }
@@ -79,6 +85,8 @@ class ImageStore(context: Context, private val http: HttpFetcher) {
             if (options.outWidth <= 0) return@withContext null
             var sample = 1
             while (options.outWidth / (sample * 2) >= widthPx) sample *= 2
+            // A very tall or very large picture (a long infographic) is taken down further: what cannot be drawn would end the app
+            while (maxOf(options.outWidth, options.outHeight) / sample > MAX_SIDE || (options.outWidth.toLong() / sample) * (options.outHeight / sample) * 4 > MAX_DECODED) sample *= 2
             BitmapFactory.decodeFile(file.path, BitmapFactory.Options().apply { inSampleSize = sample })?.also { decoded.put(key, it) }
         }
     }
@@ -100,5 +108,8 @@ class ImageStore(context: Context, private val http: HttpFetcher) {
 
     private companion object {
         const val MAX_BYTES = 12 * 1024 * 1024
+        /** A decoded picture's longest side and size in memory: under what a texture and the canvas take (100 MB). */
+        const val MAX_SIDE = 8192
+        const val MAX_DECODED = 64L * 1024 * 1024
     }
 }

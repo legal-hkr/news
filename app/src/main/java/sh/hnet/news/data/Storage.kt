@@ -38,6 +38,16 @@ class Storage(private val feedDao: FeedDao, private val articles: ArticleDao, pr
         Usage(articles.textBytes() + articles.searchBytes(), all, (all - saved).coerceAtLeast(0), articles.unsavedCount(), articles.unsavedTextBytes())
     }
 
+    /** A feed's articles when it goes for good; its saved ones stay whole (SPEC §13.2). True when there are such. */
+    suspend fun removeFeed(feedId: Long): Boolean = withContext(Dispatchers.Default) {
+        val candidates = (articles.leadImages(feedId) + articles.contents(feedId).flatMap { imagesOf(it) }).toSet()
+        articles.deleteContents(feedId)
+        articles.deleteArticles(feedId)
+        articles.forgetGone()
+        deleteUnused(candidates)
+        articles.count(feedId) > 0
+    }
+
     private suspend fun savedImages(): Set<String> =
         (articles.savedLeadImages() + articles.savedContents().flatMap { imagesOf(it) }).toSet()
 
@@ -45,18 +55,43 @@ class Storage(private val feedDao: FeedDao, private val articles: ArticleDao, pr
 
     private suspend fun remove(ids: List<Long>) {
         if (ids.isEmpty()) return
-        val kept = savedImages()
+        val candidates = HashSet<String>()
         ids.chunked(CHUNK).forEach { chunk ->
-            val urls = articles.leadImagesOf(chunk) + articles.contentsOf(chunk).flatMap { imagesOf(it) }
-            withContext(Dispatchers.IO) { images.delete(urls.toSet() - kept) }
+            candidates += articles.leadImagesOf(chunk)
+            articles.contentsOf(chunk).forEach { candidates += imagesOf(it) }
             articles.deleteContentsOf(chunk)
             articles.deleteSearchOf(chunk)
             articles.setGone(chunk)
         }
+        deleteUnused(candidates)
+    }
+
+    /**
+     * Deletes the images among [candidates] that no article left uses. The same picture can stand
+     * in two articles (one story in two feeds, an author's photo in every post): it goes with the
+     * last of them. The bodies are searched as stored, without decoding them: every address in a
+     * body counts, links too, which only ever keeps a file too many.
+     */
+    private suspend fun deleteUnused(candidates: Set<String>) {
+        if (candidates.isEmpty()) return
+        val unused = candidates.toHashSet()
+        unused -= articles.leadImagesInUse().toSet()
+        var offset = 0
+        while (unused.isNotEmpty()) {
+            val page = articles.contentsPage(CHUNK, offset)
+            if (page.isEmpty()) break
+            page.forEach { content ->
+                listOfNotNull(content.feed, content.page).forEach { body -> ADDRESS.findAll(body).forEach { unused -= it.groupValues[1] } }
+            }
+            offset += page.size
+        }
+        withContext(Dispatchers.IO) { images.delete(unused) }
     }
 
     private companion object {
         const val DAY_MS = 24 * 60 * 60 * 1000L
         const val CHUNK = 500
+        /** An address in a stored body: the blocks' JSON writes them as "url":"…". */
+        val ADDRESS = Regex(""""url":"([^"]+)"""")
     }
 }

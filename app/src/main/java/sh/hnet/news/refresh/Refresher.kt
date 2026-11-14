@@ -85,7 +85,13 @@ class Refresher(
             } finally {
                 withContext(NonCancellable) {
                     articleDao.endFetching()
-                    afterRun()
+                    // Bodies written for articles that went meanwhile (their feed was unsubscribed from during its fetch)
+                    articleDao.forgetOrphans()
+                    try {
+                        afterRun()
+                    } catch (_: Exception) {
+                        // Tidying up is tried again after the next refresh
+                    }
                 }
                 _progress.value = null
                 running.set(false)
@@ -129,6 +135,11 @@ class Refresher(
                             } catch (_: NotAFeedException) {
                                 reached.set(true)
                                 feedDao.setFailed(feed.id, FailureKind.NOT_A_FEED.name, System.currentTimeMillis())
+                            } catch (_: Exception) {
+                                // Anything else (the phone's storage is full, a file can't be written): this feed's failure too,
+                                // never the end of the other feeds' refresh or of the app
+                                reached.set(true)
+                                feedDao.setFailed(feed.id, FailureKind.NO_ANSWER.name, System.currentTimeMillis())
                             }
                         }
                         _progress.update { it?.copy(done = it.done + 1) }
@@ -205,6 +216,8 @@ class Refresher(
 
     /** The article's page and images, as the feed's settings ask; then its final state. */
     private suspend fun complete(feed: Feed, fullPage: Boolean, pending: Pending, textOnly: Boolean, pageAllowed: Boolean) {
+        // Unsubscribed from meanwhile: nothing more is fetched for it
+        if (feedDao.feed(feed.id)?.removedAt != null) return
         val item = pending.item
         val rest = fetchRest(feed, fullPage, pending.id, item.link, item.imageUrl, pending.feedBlocks, null, textOnly, pageAllowed)
         articleDao.setFetched(
@@ -268,6 +281,8 @@ class Refresher(
                 shown = sized(shown, fetched)
             }
         }
+        // The article went while its page and images were fetched (its feed was unsubscribed from): nothing is stored for it
+        if (articleDao.article(id) == null) return Rest(state, lead, shown, page != null)
         articleDao.upsert(ArticleContent(id, feed = Blocks.encode(if (page == null) shown else feedBlocks), page = if (page == null) null else Blocks.encode(shown)))
         search.index(id)
         return Rest(state, lead, shown, page != null)
@@ -280,8 +295,19 @@ class Refresher(
      * feed set to full pages; a feed kept on its own content was never incomplete for lacking one.
      */
     suspend fun fetchPage(article: Article): Boolean = withContext(Dispatchers.IO) {
-        if (article.link == null) return@withContext false
-        val feed = feedDao.feed(article.feedId) ?: return@withContext false
+        try {
+            fetchPageOf(article)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Exception) {
+            // The phone's storage is full, a file can't be written: not fetched, as the reader then says
+            false
+        }
+    }
+
+    private suspend fun fetchPageOf(article: Article): Boolean {
+        if (article.link == null) return false
+        val feed = feedDao.feed(article.feedId) ?: return false
         val content = articleDao.content(article.id)
         val rest = fetchRest(feed, fullPage = true, article.id, article.link, article.imageUrl, Blocks.decode(content?.feed), null, textOnly = false, pageAllowed = true)
         if (feed.fullPage) {
@@ -289,7 +315,7 @@ class Refresher(
         } else if (rest.page) {
             articleDao.setCompleted(article.id, article.state, rest.lead, Blocks.words(rest.shown))
         }
-        rest.page
+        return rest.page
     }
 
     /**

@@ -117,8 +117,12 @@ class ArticlesViewModel(private val app: NewsApplication) : ViewModel() {
     /** The article the reader showed last; the list returns to its row. */
     var returnTo: Long? = null
 
+    /** Articles marked unread in the reader: they stay so while it is open, across a recreation of the screen too. */
+    val keptUnread = HashSet<Long>()
+
     fun openReader() {
         readerRows = list.value?.rows.orEmpty()
+        keptUnread.clear()
     }
 
     fun rebuild() {

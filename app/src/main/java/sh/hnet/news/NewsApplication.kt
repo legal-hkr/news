@@ -44,7 +44,7 @@ class NewsApplication : Application() {
 
     val feeds: FeedRepository by lazy {
         FeedRepository(database.feedDao(), icons, appScope).also {
-            it.onPurge = ::deleteArticles
+            it.onPurge = { feedId -> storage.removeFeed(feedId) }
             it.onAdded = ::fetchFirst
         }
     }
@@ -81,15 +81,4 @@ class NewsApplication : Application() {
     /** The first fetch of feeds just subscribed or imported, after the refresh under way if there is one. */
     private fun fetchFirst(feedIds: List<Long>) = refreshRequests.request(feedIds, afterCurrent = true)
 
-    /** A feed's articles with their images, when the feed goes for good; its saved articles stay whole (SPEC §13.2). True when there are such. */
-    private suspend fun deleteArticles(feedId: Long): Boolean {
-        val urls = articles.leadImages(feedId) + articles.contents(feedId).flatMap { content ->
-            Blocks.images(Blocks.decode(content.feed) + Blocks.decode(content.page)).map { it.url }
-        }
-        withContext(Dispatchers.IO) { images.delete(urls.toSet()) }
-        articles.deleteContents(feedId)
-        articles.deleteArticles(feedId)
-        articles.forgetGone()
-        return articles.count(feedId) > 0
-    }
 }

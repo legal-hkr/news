@@ -148,7 +148,7 @@ fun ReaderScreen(model: ArticlesViewModel, articleId: Long, onBack: () -> Unit, 
     var textSheet by remember { mutableStateOf(false) }
     var menu by remember { mutableStateOf(false) }
     // Articles marked unread here stay so while the reader is open
-    val keptUnread = remember { HashSet<Long>() }
+    val keptUnread = model.keptUnread
     val noBrowser = stringResource(R.string.msg_no_browser)
     val noNetwork = stringResource(R.string.error_no_network)
     val notFetched = stringResource(R.string.msg_page_not_fetched)
@@ -375,7 +375,8 @@ private fun ArticlePage(state: PageState, next: ArticleRow?, modifier: Modifier,
                 val ended = !list.canScrollForward
                 val index = if (ended) 0 else list.firstVisibleItemIndex
                 val offset = if (ended) 0 else list.firstVisibleItemScrollOffset
-                state.article = article.copy(readIndex = index, readOffset = offset, version = shown)
+                // The article as it is now: its state and words may have changed since this page was first drawn (its page was fetched)
+                state.article = (state.article ?: article).copy(readIndex = index, readOffset = offset, version = shown)
                 app.appScope.launch { app.articles.setPosition(article.id, index, offset) }
             }
         }

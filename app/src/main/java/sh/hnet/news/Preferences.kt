@@ -200,7 +200,10 @@ class Preferences(private val context: Context) {
         val at = prefs[lastRefreshAtKey]
         val new = prefs[lastRefreshNewKey]
         val offline = prefs[lastRefreshOfflineKey]
+        // For how long articles are kept stays too: going back to a month would remove older articles, and Reset says what is stored stays
+        val keep = prefs[keepDaysKey]
         prefs.clear()
+        keep?.let { prefs[keepDaysKey] = it }
         at?.let { prefs[lastRefreshAtKey] = it }
         new?.let { prefs[lastRefreshNewKey] = it }
         offline?.let { prefs[lastRefreshOfflineKey] = it }
