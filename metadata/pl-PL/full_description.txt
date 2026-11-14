@@ -1,0 +1,30 @@
+Newsy to czytnik kanałów RSS i Atom, który przy odświeżaniu pobiera pełny tekst i obrazy każdego artykułu, dzięki czemu wszystko można czytać bez sieci. Z Internetu korzysta wyłącznie po to, żeby łączyć się ze stronami subskrybowanych kanałów: bez konta, bez serwera pośredniczącego, bez analityki. Aplikacja nie prosi o dostęp do położenia, pamięci ani multimediów, ani o zgodę na powiadomienia, a to, co czytasz, pozostaje w telefonie.
+
+Kanały:
+- RSS 0.9x i 2.0, RDF oraz Atom; do znalezienia kanału wystarczy adres strony
+- Foldery, we własnej kolejności albo według nazwy
+- Import i eksport OPML oraz dodawanie kanału przez udostępnienie strony z przeglądarki
+- Dla każdego kanału: pełna strona artykułu albo treść z kanału, z obrazami lub bez
+
+Artykuły:
+- Jedna lista wszystkich artykułów, z filtrami: źródło, tylko nieprzeczytane, tylko zapisane
+- Wyszukiwanie w tytułach i pełnej treści, bez sieci, także bez znaków diakrytycznych
+- Trzy warianty wyglądu listy – tekst, miniatura lub duży obraz – dla całej aplikacji albo dla pojedynczego kanału
+- Przesunięcie wiersza oznacza artykuł jako przeczytany albo go zapisuje; zapisane artykuły nie są usuwane
+
+Czytanie:
+- Artykuły wyświetlane natywnie: śródtytuły, cytaty, listy, kod i tabele
+- Rozmiar tekstu i krój pisma oraz zapamiętane miejsce, w którym przerwano czytanie
+- Obrazy na pełnym ekranie, z powiększaniem, zapisem w folderze Pictures i udostępnianiem
+- Przejście do następnego artykułu z listy bez wracania do niej
+
+Odświeżanie i pamięć:
+- Odświeżanie w tle w wybranych odstępach, bez powiadomień
+- Opcjonalnie tylko w sieciach bez limitu danych, z pytaniem przed ręcznym odświeżeniem w sieci z limitem
+- Kanał, który przestał się odświeżać, jest dyskretnie oznaczany
+- Artykuły przechowywane przez wybrany czas, dla całej aplikacji albo dla pojedynczego kanału
+
+A także:
+- Kopia zapasowa kanałów, ustawień i zapisanych artykułów z tekstem w wybranym pliku
+- Język polski lub angielski, niezależnie od języka systemu
+- Wygląd Material 3 Expressive w kolorach systemu

@@ -1,27 +1,31 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Placeholder mark (a feed symbol in a gradient, as the other HNet apps' placeholders) until the owner's icon arrives. -->
+<!-- The launcher icon's foreground (the owner's icon set of 14 Nov 2026): a graphite dot and two orange waves. Final art, not to be redrawn. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt"
     android:width="108dp"
     android:height="108dp"
-    android:viewportWidth="108"
-    android:viewportHeight="108">
-    <group
-        android:scaleX="2.6666667"
-        android:scaleY="2.6666667"
-        android:translateX="22"
-        android:translateY="22">
-        <path android:pathData="M6.18,15.64a2.18,2.18 0,1 1,0 4.36a2.18,2.18 0,1 1,0 -4.36ZM4,4.44A15.56,15.56 0,0 1,19.56 20h-2.83A12.73,12.73 0,0 0,4 7.27ZM4,10.1a9.9,9.9 0,0 1,9.9 9.9h-2.83A7.07,7.07 0,0 0,4 12.93Z">
+    android:viewportWidth="768"
+    android:viewportHeight="768">
+    <!-- Drawn on a 512 x 512 grid, moved by 128 to sit in the adaptive icon's safe zone -->
+    <group android:translateX="128" android:translateY="128">
+        <path
+            android:pathData="M136,341 a35,35 0 1,0 70,0 a35,35 0 1,0 -70,0 Z">
             <aapt:attr name="android:fillColor">
-                <gradient
-                    android:startX="4"
-                    android:startY="4"
-                    android:endX="20"
-                    android:endY="20"
-                    android:type="linear">
-                    <item android:offset="0" android:color="#FF12A150" />
-                    <item android:offset="1" android:color="#FF1FB8C8" />
-                </gradient>
+                <gradient android:type="linear" android:startX="136" android:startY="306" android:endX="206" android:endY="376" android:startColor="#FF9A9DAA" android:endColor="#FF3E4150" />
+            </aapt:attr>
+        </path>
+        <path
+            android:pathData="M136,235.5 A140.5,140.5 0 0,1 276.5,376"
+            android:strokeWidth="44">
+            <aapt:attr name="android:strokeColor">
+                <gradient android:type="linear" android:startX="135" android:startY="134" android:endX="378" android:endY="377" android:startColor="#FFFFA51F" android:endColor="#FFF0452E" />
+            </aapt:attr>
+        </path>
+        <path
+            android:pathData="M136,157.5 A218.5,218.5 0 0,1 354.5,376"
+            android:strokeWidth="44">
+            <aapt:attr name="android:strokeColor">
+                <gradient android:type="linear" android:startX="135" android:startY="134" android:endX="378" android:endY="377" android:startColor="#FFFFA51F" android:endColor="#FFF0452E" />
             </aapt:attr>
         </path>
     </group>

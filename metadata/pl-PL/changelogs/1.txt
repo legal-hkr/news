@@ -1,0 +1,9 @@
+v0.1.0
+
+Pierwsza wersja:
+- Kanały RSS i Atom, w folderach, z importem i eksportem OPML
+- Pełny tekst i obrazy zapisane w telefonie, do czytania bez sieci
+- Jedna lista z filtrami: źródło, tylko nieprzeczytane, tylko zapisane, oraz wyszukiwanie
+- Czytnik z wyborem rozmiaru tekstu i kroju pisma oraz przeglądarka obrazów
+- Odświeżanie w tle, bez powiadomień
+- Kopia zapasowa kanałów, ustawień i zapisanych artykułów

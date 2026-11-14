@@ -1,4 +1,9 @@
 v0.1.0
 
-In development:
-- The article list’s frame and the first settings pages
+First version:
+- RSS and Atom feeds, in folders, with OPML import and export
+- Full text and images stored on the phone, for reading without a network
+- One list with filters: source, unread only, saved only, and search
+- Reader with adjustable text size and typeface, and an image viewer
+- Refresh in the background, without notifications
+- Backup and restore of feeds, settings and saved articles

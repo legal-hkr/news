@@ -1,0 +1,30 @@
+News is a reader for RSS and Atom feeds that fetches each article’s full text and images when it refreshes, so everything can be read without a network. It uses the Internet only to reach the sites of the feeds you subscribe to: no account, no server in between, no analytics. It doesn’t ask for your location, storage, media or notifications, and what you read stays on your phone.
+
+Feeds:
+- RSS 0.9x and 2.0, RDF and Atom; a site’s address is enough to find its feed
+- Folders, in your own order or by name
+- OPML import and export, and adding a feed by sharing a page from the browser
+- For each feed: the full article page or the feed’s own content, with or without images
+
+Articles:
+- One list for everything, narrowed by source, unread only and saved only
+- Search in titles and full text, without a network and ignoring diacritics
+- Three looks for the list – text, thumbnail or large image – for the whole app or for a single feed
+- Swipe to mark as read or to save; saved articles are never removed
+
+Reading:
+- Articles drawn natively: headings, quotes, lists, code and tables
+- Text size and typeface, and the place where you stopped reading
+- Images full screen, with zoom, saving to Pictures and sharing
+- Moving on to the next article without going back to the list
+
+Refresh and storage:
+- Refresh in the background at the interval you choose, without notifications
+- Only on unmetered networks if you wish, with a question before a manual refresh on a metered one
+- A feed that keeps failing is quietly marked
+- Articles kept for as long as you set, for the whole app or for a single feed
+
+And also:
+- Backup and restore of feeds, settings and saved articles with their text, to a file you choose
+- English and Polish, independent of the system language
+- Material 3 Expressive design with your phone’s colors
