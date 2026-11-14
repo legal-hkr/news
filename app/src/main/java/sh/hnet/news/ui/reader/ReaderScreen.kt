@@ -341,13 +341,17 @@ private suspend fun load(app: NewsApplication, state: PageState) {
 }
 
 /**
- * The article's lead image when the body does not show it itself; it then opens the article. One
- * that is not on the phone (cleared, or never stored) is shown too, as the placeholder that offers
- * to fetch it – the same as an image of the body.
+ * The article's lead image – what the list shows as its thumbnail – under the header, only for an
+ * article whose body has no picture at all (the owner's rule: which pictures an article shows, and
+ * where, is its author's choice). Sites give one picture under addresses too different to match
+ * (Engadget: "l-intro-….jpg" in the feed, "intro-….jpg" in the text), so the lead is not compared
+ * with the body's pictures; it only stands in where the body would otherwise show none, as on
+ * pages whose opening picture lies outside the text that was cut out. One that is not on the phone
+ * is shown as the placeholder that offers to fetch it, the same as an image of the body.
  */
 private fun leadImage(state: PageState): Block.Image? {
     val url = state.article?.imageUrl ?: return null
-    if (Blocks.images(state.blocks).any { it.url == url }) return null
+    if (Blocks.images(state.blocks).isNotEmpty()) return null
     return Block.Image(url)
 }
 
