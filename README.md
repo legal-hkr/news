@@ -10,7 +10,7 @@ Bug reports and feature requests: [github.com/legal-hkr/news](https://github.com
 
 ## Overview
 
-News is a reader for RSS and Atom feeds that fetches each article’s full text and images when it refreshes, so everything can be read without a network. It uses the Internet only to reach the sites of the feeds you subscribe to: no account, no server in between, no analytics. It doesn’t ask for your location, storage, media or notifications, and what you read stays on the device.
+News is a reader for RSS and Atom feeds that fetches each article’s full text and images when it refreshes, so everything can be read without a network. It uses the Internet only to reach the sites of the feeds you subscribe to: no account, no server in between, no analytics. It doesn’t ask for your location, storage or media, asks for notifications only if you turn on the badge on its icon, and what you read stays on the device.
 
 ## Screenshots
 

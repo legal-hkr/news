@@ -52,6 +52,7 @@ data class BackupSettings(
     val serif: Boolean? = null,
     val markReadOnScroll: Boolean? = null,
     val keepDays: Int? = null,
+    val iconBadge: Boolean? = null,
     val refreshIntervalHours: Int? = null,
     val refreshUnmeteredOnly: Boolean? = null,
     val refreshChargingOnly: Boolean? = null,

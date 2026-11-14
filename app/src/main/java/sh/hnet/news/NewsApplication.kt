@@ -1,5 +1,7 @@
 package sh.hnet.news
 
+import kotlinx.coroutines.CancellationException
+import sh.hnet.news.notify.IconBadge
 import android.content.res.Configuration
 import sh.hnet.news.widget.WidgetRequest
 import sh.hnet.news.widget.Widgets
@@ -71,12 +73,22 @@ class NewsApplication : Application() {
 
     val backup: BackupManager by lazy { BackupManager(this, database.feedDao(), articles, stamps) }
 
+    val badge: IconBadge by lazy { IconBadge(this, preferences, articles, stamps) }
+
     val search: SearchIndex by lazy { SearchIndex(articles) }
 
     val refresher: Refresher by lazy { Refresher(database.feedDao(), articles, http, images, preferences, search, appScope).also {
+            // Each on its own: one of them failing must not keep the others from running
             it.afterRun = {
-                storage.removeOld()
-                Widgets.update(this)
+                listOf<suspend () -> Unit>({ storage.removeOld() }, { Widgets.update(this) }, { badge.update() }).forEach { step ->
+                    try {
+                        step()
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        // Tried again after the next refresh
+                    }
+                }
             }
         }
     }

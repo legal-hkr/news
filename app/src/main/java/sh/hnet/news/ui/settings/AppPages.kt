@@ -103,6 +103,8 @@ fun ResetScreen(onBack: () -> Unit) {
                     preferences.restoreDefaults()
                     // The background job follows the settings it was scheduled from
                     RefreshJobService.schedule(context.applicationContext, preferences.refreshSettings())
+                    // The icon badge is off by default: its notification goes
+                    app.badge.off()
                     Toast.makeText(context, done, Toast.LENGTH_SHORT).show()
                     // Last: a language change recreates the activity
                     if (currentLanguageTag(context).isNotEmpty()) setLanguage(context, "")

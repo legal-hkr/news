@@ -32,6 +32,9 @@ class MainActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         Widgets.update(this)
+        // An article read from a widget is taken off the badge's number (SPEC-widgets §8.4)
+        val app = application as NewsApplication
+        app.appScope.launch { app.badge.update() }
     }
 
     override fun onNewIntent(intent: Intent) {

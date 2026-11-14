@@ -333,4 +333,15 @@
     <string name="widget_headlines_description">A list of the newest unread articles.</string>
     <string name="content_description_widget_article" translatable="false">%1$s. %2$s</string>
     <string name="label_age_yesterday">yesterday</string>
+    <string name="header_app_icon">App icon</string>
+    <string name="label_icon_badge">Badge on the icon</string>
+    <string name="desc_icon_badge">Shows that new articles have arrived. Uses a silent notification.</string>
+    <string name="msg_notifications_off">Off. The badge will not show.</string>
+    <string name="label_notifications">Notifications</string>
+    <string name="channel_new_articles">New articles</string>
+    <string name="channel_new_articles_description">One silent notification that puts a badge on the app’s icon.</string>
+    <string name="notification_new_articles">New articles: %d</string>
+    <string name="notification_feed_count" translatable="false">%1$s (%2$d)</string>
+    <string name="notification_other_feeds">other feeds (%d)</string>
+    <string name="msg_privacy_badge">The badge on the icon uses one silent notification, created on the phone.</string>
 </resources>

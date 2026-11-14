@@ -8,7 +8,9 @@
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- The background refresh job stays scheduled across a restart of the phone. -->
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
-    <!-- No storage, media, location or notification permission, ever. -->
+    <!-- One silent, optional notification that puts a badge on the app's icon (SPEC-widgets §8); asked for only when the user turns the badge on. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <!-- No storage, media or location permission, ever. -->
 
     <application
         android:name=".NewsApplication"
@@ -85,6 +87,11 @@
                 <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE" />
             </intent-filter>
         </activity>
+
+        <!-- The badge's notification was swiped away. -->
+        <receiver
+            android:name=".notify.BadgeDismissReceiver"
+            android:exported="false" />
 
         <!-- Refresh in the background: run by the system's job scheduler only. -->
         <service

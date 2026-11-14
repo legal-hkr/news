@@ -62,6 +62,7 @@ class Preferences(private val context: Context) {
     private val unreadOnlyKey = booleanPreferencesKey("unread_only")
     private val savedOnlyKey = booleanPreferencesKey("saved_only")
     private val keepDaysKey = intPreferencesKey("keep_days")
+    private val iconBadgeKey = booleanPreferencesKey("icon_badge")
     private val oldestFirstKey = booleanPreferencesKey("oldest_first")
     private val ownOrderKey = booleanPreferencesKey("own_feed_order")
     private val textSizeKey = intPreferencesKey("reader_text_size")
@@ -140,6 +141,11 @@ class Preferences(private val context: Context) {
         it[onOpenKey] = settings.onOpen
     }
 
+    /** The badge on the app's icon, through one silent notification (SPEC-widgets §8); off unless the user turns it on. */
+    val iconBadge: Flow<Boolean> = context.settings.data.map { it[iconBadgeKey] ?: false }.distinctUntilChanged()
+
+    suspend fun setIconBadge(on: Boolean) = context.settings.edit { it[iconBadgeKey] = on }
+
     /** For how many days articles are kept (SPEC §13.1), one of [KEEP_DAYS]; 0 for no limit. */
     val keepDays: Flow<Int> = context.settings.data.map { prefs -> (prefs[keepDaysKey] ?: DEFAULT_KEEP_DAYS).takeIf { it in KEEP_DAYS } ?: DEFAULT_KEEP_DAYS }.distinctUntilChanged()
 
@@ -154,7 +160,7 @@ class Preferences(private val context: Context) {
         return BackupSettings(
             unreadOnly = prefs[unreadOnlyKey], savedOnly = prefs[savedOnlyKey], oldestFirst = prefs[oldestFirstKey], ownFeedOrder = prefs[ownOrderKey],
             look = prefs[lookKey], previewLines = prefs[previewLinesKey], textSize = prefs[textSizeKey], serif = prefs[serifKey],
-            markReadOnScroll = prefs[markOnScrollKey], keepDays = prefs[keepDaysKey],
+            markReadOnScroll = prefs[markOnScrollKey], keepDays = prefs[keepDaysKey], iconBadge = prefs[iconBadgeKey],
             refreshIntervalHours = prefs[intervalKey], refreshUnmeteredOnly = prefs[unmeteredKey], refreshChargingOnly = prefs[chargingKey], refreshOnOpen = prefs[onOpenKey],
         )
     }
@@ -175,6 +181,7 @@ class Preferences(private val context: Context) {
         put(serifKey, settings.serif)
         put(markOnScrollKey, settings.markReadOnScroll)
         put(keepDaysKey, settings.keepDays)
+        put(iconBadgeKey, settings.iconBadge)
         put(intervalKey, settings.refreshIntervalHours)
         put(unmeteredKey, settings.refreshUnmeteredOnly)
         put(chargingKey, settings.refreshChargingOnly)

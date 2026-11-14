@@ -22,6 +22,17 @@ interface ArticleDao {
     )
     fun observeRows(feedId: Long?, folderId: Long?): Flow<List<ArticleRow>>
 
+    /** The newest article's id; ids only grow, so an article with a greater one was stored later. */
+    @Query("SELECT COALESCE(MAX(id), 0) FROM article")
+    suspend fun newestId(): Long
+
+    /** Unread articles stored after the one with id [after], by feed, most first: what the icon badge counts (SPEC-widgets §8.4). */
+    @Query(
+        "SELECT f.title AS title, COUNT(*) AS count FROM article a JOIN feed f ON f.id = a.feedId " +
+            "WHERE a.gone = 0 AND a.read = 0 AND a.id > :after AND f.removedAt IS NULL GROUP BY a.feedId ORDER BY count DESC, f.title",
+    )
+    suspend fun newByFeed(after: Long): List<NewInFeed>
+
     /** The newest unread articles of a source, for the widgets and for the reader opened from one (SPEC-widgets §5–§7). */
     @Query(
         "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines, f.language AS feedLanguage, f.fullPage AS feedFullPage " +

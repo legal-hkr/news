@@ -92,6 +92,6 @@ fun AboutScreen(onBack: () -> Unit, onOpenWhatsNew: () -> Unit, onOpenLicense: (
                 }
             }
         }
-        SettingsNote(stringResource(R.string.msg_about_privacy))
+        SettingsNote(stringResource(R.string.msg_about_privacy) + " " + stringResource(R.string.msg_privacy_badge))
     }
 }

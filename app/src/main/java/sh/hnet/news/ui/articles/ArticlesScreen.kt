@@ -2,6 +2,7 @@
 
 package sh.hnet.news.ui.articles
 
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import sh.hnet.news.data.Passage
 import androidx.compose.ui.text.withStyle
@@ -132,6 +133,11 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
     val source by model.source.collectAsStateWithLifecycle()
     val unreadOnly by model.unreadOnly.collectAsStateWithLifecycle()
     val savedOnly by model.savedOnly.collectAsStateWithLifecycle()
+    // The list on screen is what the icon badge waits for: it goes, and what arrives meanwhile is seen here (SPEC-widgets §8.5)
+    LifecycleResumeEffect(Unit) {
+        app.badge.listShown(true)
+        onPauseOrDispose { app.badge.listShown(false) }
+    }
     val keyboard = LocalSoftwareKeyboardController.current
     // System Back closes the search before it leaves the app (SPEC §3.2)
     BackHandler(model.searching) { model.closeSearch() }

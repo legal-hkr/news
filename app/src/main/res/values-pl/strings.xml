@@ -331,4 +331,14 @@
     <string name="widget_headlines_name">Nagłówki</string>
     <string name="widget_headlines_description">Lista najnowszych nieprzeczytanych artykułów.</string>
     <string name="label_age_yesterday">wczoraj</string>
+    <string name="header_app_icon">Ikona aplikacji</string>
+    <string name="label_icon_badge">Plakietka na ikonie</string>
+    <string name="desc_icon_badge">Informuje o nowych artykułach. Korzysta z cichego powiadomienia.</string>
+    <string name="msg_notifications_off">Wyłączone. Plakietka się nie pojawi.</string>
+    <string name="label_notifications">Powiadomienia</string>
+    <string name="channel_new_articles">Nowe artykuły</string>
+    <string name="channel_new_articles_description">Jedno ciche powiadomienie, dzięki któremu na ikonie aplikacji pojawia się plakietka.</string>
+    <string name="notification_new_articles">Nowe artykuły: %d</string>
+    <string name="notification_other_feeds">inne kanały (%d)</string>
+    <string name="msg_privacy_badge">Plakietka na ikonie korzysta z jednego cichego powiadomienia, tworzonego w telefonie.</string>
 </resources>

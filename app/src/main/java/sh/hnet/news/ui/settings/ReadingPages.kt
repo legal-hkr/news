@@ -1,5 +1,21 @@
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3ExpressiveApi::class)
+
 package sh.hnet.news.ui.settings
 
+import androidx.compose.ui.res.painterResource
+import androidx.compose.material3.Icon
+import sh.hnet.news.ui.components.settingsRowColors
+import sh.hnet.news.ui.components.RowIcon
+import androidx.lifecycle.compose.LifecycleResumeEffect
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.material3.SegmentedListItem
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import android.provider.Settings
+import android.content.pm.PackageManager
+import android.content.Intent
+import android.Manifest
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.runtime.Composable
@@ -76,6 +92,65 @@ fun RefreshSettingsScreen(onBack: () -> Unit) {
         SettingsNote(stringResource(R.string.msg_refresh_note))
         SettingsGroup {
             row { shapes -> SettingsSwitchRow(shapes, R.drawable.ic_refresh, stringResource(R.string.label_refresh_on_open), current.onOpen, { change(current.copy(onOpen = it)) }) }
+        }
+        IconBadgeGroup()
+    }
+}
+
+/**
+ * "App icon" (SPEC-widgets §8.1, §8.2): the badge's switch, whose own text is the explanation.
+ * Turning it on asks for the notification permission, then and nowhere else. While it is on and the
+ * notification cannot be shown, a row under it says so and opens the system's settings – drawn as
+ * the checks of Clock's reliability page rather than with the SPEC's text button; it goes by itself
+ * once notifications are allowed.
+ */
+@Composable
+private fun IconBadgeGroup() {
+    val context = LocalContext.current
+    val app = context.applicationContext as NewsApplication
+    val scope = rememberCoroutineScope()
+    val badge by app.preferences.iconBadge.collectAsStateWithLifecycle(null)
+    var canShow by remember { mutableStateOf(app.badge.canShow()) }
+    // Asked again on coming back from the system's settings
+    LifecycleResumeEffect(Unit) {
+        canShow = app.badge.canShow()
+        onPauseOrDispose { }
+    }
+    val permission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { canShow = app.badge.canShow() }
+    val on = badge ?: return
+    SettingsGroup(stringResource(R.string.header_app_icon)) {
+        row { shapes ->
+            SettingsSwitchRow(
+                shapes, R.drawable.ic_notifications, stringResource(R.string.label_icon_badge), on,
+                { turnedOn ->
+                    scope.launch {
+                        app.preferences.setIconBadge(turnedOn)
+                        if (turnedOn) {
+                            // Nothing shows until new articles come
+                            app.badge.startOver()
+                            if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) permission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        } else {
+                            app.badge.off()
+                        }
+                    }
+                },
+                supporting = stringResource(R.string.desc_icon_badge),
+            )
+        }
+        if (on && !canShow) {
+            // As a check of Clock's reliability page: the state and its consequence as two sentences in the error role, the whole row opening the system's page
+            row { shapes ->
+                SegmentedListItem(
+                    onClick = { context.startActivity(Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.packageName)) },
+                    shapes = shapes,
+                    colors = settingsRowColors(),
+                    leadingContent = { RowIcon(R.drawable.ic_notifications_off, error = true) },
+                    trailingContent = { Icon(painterResource(R.drawable.ic_open_in_new), contentDescription = null) },
+                    supportingContent = { Text(stringResource(R.string.msg_notifications_off), color = MaterialTheme.colorScheme.error) },
+                ) {
+                    Text(stringResource(R.string.label_notifications), color = MaterialTheme.colorScheme.error)
+                }
+            }
         }
     }
 }

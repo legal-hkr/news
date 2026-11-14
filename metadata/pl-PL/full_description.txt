@@ -1,4 +1,4 @@
-Newsy to czytnik kanałów RSS i Atom, który przy odświeżaniu pobiera pełny tekst i obrazy każdego artykułu, dzięki czemu wszystko można czytać bez sieci. Z Internetu korzysta wyłącznie po to, żeby łączyć się ze stronami subskrybowanych kanałów: bez konta, bez serwera pośredniczącego, bez analityki. Aplikacja nie prosi o dostęp do położenia, pamięci ani multimediów, ani o zgodę na powiadomienia, a to, co czytasz, pozostaje w telefonie.
+Newsy to czytnik kanałów RSS i Atom, który przy odświeżaniu pobiera pełny tekst i obrazy każdego artykułu, dzięki czemu wszystko można czytać bez sieci. Z Internetu korzysta wyłącznie po to, żeby łączyć się ze stronami subskrybowanych kanałów: bez konta, bez serwera pośredniczącego, bez analityki. Aplikacja nie prosi o dostęp do położenia, pamięci ani multimediów, a o zgodę na powiadomienia tylko wtedy, gdy włączysz plakietkę na ikonie. To, co czytasz, pozostaje w telefonie.
 
 Kanały:
 - RSS 0.9x i 2.0, RDF oraz Atom; do znalezienia kanału wystarczy adres strony

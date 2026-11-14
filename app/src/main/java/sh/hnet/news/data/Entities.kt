@@ -149,5 +149,8 @@ data class ArticleRow(
     val feedFullPage: Boolean,
 )
 
+/** How many new articles a feed brought, for the badge's notification. */
+data class NewInFeed(val title: String, val count: Int)
+
 /** Unread articles of a feed. */
 data class UnreadCount(val feedId: Long, val count: Int)
