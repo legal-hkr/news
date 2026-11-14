@@ -16,7 +16,6 @@ import android.content.Intent
 import android.net.Uri
 import android.graphics.Bitmap
 import android.os.Bundle
-import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.content.edit
@@ -188,13 +187,15 @@ object Widgets {
         }
         headlines.forEach { id ->
             val source = source(id)
-            val list = if (noFeeds) emptyList() else rows(source, MAX_HEADLINES)
+            val options = manager.getAppWidgetOptions(id)
+            // As many strips as fill the widget's height: the list does not scroll
+            val strips = strips(options.height())
+            val list = if (noFeeds) emptyList() else rows(source, strips)
             val thumbnailWidth = (THUMBNAIL_DP * density).toInt()
             val thumbnails = list.associate { row -> row.article.id to row.article.imageUrl?.let { app.images.load(it, thumbnailWidth) }?.within(thumbnailWidth) }
             // Narrower than three cells' worth there is no room for the age (§6)
-            val options = manager.getAppWidgetOptions(id)
             val showAge = options.width() >= AGE_FROM_DP
-            drawn[id] = headlines(app, source, noFeeds, unreadOf(source, feeds, unread), list, thumbnails, showAge, stripHeight(options.height()))
+            drawn[id] = headlines(app, source, noFeeds, unreadOf(source, feeds, unread), list, thumbnails, showAge, strips)
         }
         withContext(Dispatchers.Main) {
             drawn.forEach { (id, views) ->
@@ -242,15 +243,15 @@ object Widgets {
     private fun Bundle.height(): Int = getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT).takeIf { it > 0 } ?: 180
 
     /**
-     * How tall a strip is in a Headlines widget of this height, in dp: as many whole strips as fit
-     * at the designed 56 dp with 6 dp between them, then stretched so that they fill the height
-     * exactly – no part of a further strip shows at the bottom (the owner's rule over §6's fixed
-     * 56 dp).
+     * How many strips a Headlines widget of this height shows: as many whole ones as fit at the
+     * designed 56 dp with 6 dp between them. The layout then shares the real height among them, so
+     * they are a little taller than designed and fill the widget exactly – no part of a further
+     * strip at the bottom, and nothing to scroll (the owner's rules over §6's fixed 56 dp and
+     * scrolling list).
      */
-    private fun stripHeight(widgetHeight: Int): Float {
+    private fun strips(widgetHeight: Int): Int {
         val room = (widgetHeight - LIST_TOP_DP).coerceAtLeast(STRIP_DP)
-        val strips = ((room + STRIP_GAP_DP) / (STRIP_DP + STRIP_GAP_DP)).coerceAtLeast(1)
-        return (room - (strips - 1) * STRIP_GAP_DP).toFloat() / strips
+        return ((room + STRIP_GAP_DP) / (STRIP_DP + STRIP_GAP_DP)).coerceAtLeast(1)
     }
 
     private fun unreadOf(source: Source, feeds: List<Feed>, unread: Map<Long, Int>): Int = when (source) {
@@ -315,8 +316,8 @@ object Widgets {
         }
     }
 
-    /** Headlines, 4×2 and other sizes (§6): the newest unread articles of the source as a list that scrolls inside the widget. */
-    private fun headlines(context: Context, source: Source, noFeeds: Boolean, unread: Int, rows: List<ArticleRow>, thumbnails: Map<Long, Bitmap?>, showAge: Boolean, stripHeight: Float): RemoteViews {
+    /** Headlines, 4×2 and other sizes (§6): the newest unread articles of the source, one strip each, as many as the widget's height holds. */
+    private fun headlines(context: Context, source: Source, noFeeds: Boolean, unread: Int, rows: List<ArticleRow>, thumbnails: Map<Long, Bitmap?>, showAge: Boolean, strips: Int): RemoteViews {
         if (rows.isEmpty()) {
             return RemoteViews(context.packageName, R.layout.widget_headlines_state).apply {
                 setImageViewResource(R.id.strip_icon, if (noFeeds) R.drawable.ic_add else R.drawable.ic_check)
@@ -329,38 +330,37 @@ object Widgets {
         val zone = ZoneId.systemDefault()
         val today = LocalDate.now(zone)
         val locale = context.resources.configuration.locales[0]
-        val items = RemoteViews.RemoteCollectionItems.Builder().setHasStableIds(true).setViewTypeCount(1)
-        rows.forEach { row ->
-            val article = row.article
-            // The time today, then "yesterday", then the date
-            val day = dayOf(article.published, zone)
-            val age = when (day) {
-                today -> timeOfDay(context, article.published)
-                today.minusDays(1) -> context.getString(R.string.label_age_yesterday)
-                else -> shortDate(locale, article.published, zone)
-            }
-            val thumbnail = thumbnails[article.id]
-            items.addItem(
-                article.id,
-                RemoteViews(context.packageName, R.layout.widget_headline_row).apply {
-                    setViewLayoutHeight(R.id.strip, stripHeight, TypedValue.COMPLEX_UNIT_DIP)
-                    setTextViewText(R.id.strip_headline, article.title)
-                    setTextViewText(R.id.strip_age, age)
-                    setViewVisibility(R.id.strip_age, if (showAge) View.VISIBLE else View.GONE)
-                    // A row without a picture keeps its shape: the tile with the feed symbol stays under the empty thumbnail
-                    setViewVisibility(R.id.strip_thumbnail, if (thumbnail != null) View.VISIBLE else View.GONE)
-                    if (thumbnail != null) setImageViewBitmap(R.id.strip_thumbnail, thumbnail)
-                    setContentDescription(R.id.strip, context.getString(R.string.content_description_widget_article, row.feedTitle, article.title))
-                    // The list's one intent, filled in with this row's address
-                    setOnClickFillInIntent(R.id.strip, Intent().setData(WidgetRequest.address("article", source, article.id)))
-                },
-            )
-        }
         return RemoteViews(context.packageName, R.layout.widget_headlines).apply {
-            setRemoteAdapter(R.id.list, items.build())
-            // The rows share one intent the system fills in for each: it has to be changeable, and carries no address of its own
-            val template = Intent(Intent.ACTION_VIEW, null, context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP)
-            setPendingIntentTemplate(R.id.list, PendingIntent.getActivity(context, REQUEST_ROWS, template, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE))
+            removeAllViews(R.id.list)
+            rows.forEach { row ->
+                val article = row.article
+                // The time today, then "yesterday", then the date
+                val age = when (dayOf(article.published, zone)) {
+                    today -> timeOfDay(context, article.published)
+                    today.minusDays(1) -> context.getString(R.string.label_age_yesterday)
+                    else -> shortDate(locale, article.published, zone)
+                }
+                val thumbnail = thumbnails[article.id]
+                addStableView(
+                    R.id.list,
+                    RemoteViews(context.packageName, R.layout.widget_headline_row).apply {
+                        setTextViewText(R.id.strip_headline, article.title)
+                        setTextViewText(R.id.strip_age, age)
+                        setViewVisibility(R.id.strip_age, if (showAge) View.VISIBLE else View.GONE)
+                        // A row without a picture keeps its shape: the tile with the feed symbol stays under the empty thumbnail
+                        setViewVisibility(R.id.strip_thumbnail, if (thumbnail != null) View.VISIBLE else View.GONE)
+                        if (thumbnail != null) setImageViewBitmap(R.id.strip_thumbnail, thumbnail)
+                        setContentDescription(R.id.strip, context.getString(R.string.content_description_widget_article, row.feedTitle, article.title))
+                        setOnClickPendingIntent(R.id.strip, open(context, "article", source, article.id))
+                    },
+                    // The article's id folded into an int: the launcher keeps a strip that stays and redraws only what changed
+                    (article.id xor (article.id ushr 32)).toInt(),
+                )
+            }
+            // Fewer articles than places: empty places keep the strips above at their height
+            repeat(strips - rows.size) { place ->
+                addStableView(R.id.list, RemoteViews(context.packageName, R.layout.widget_headline_row).apply { setViewVisibility(R.id.strip, View.INVISIBLE) }, -1 - place)
+            }
             badge(context, source, noFeeds, unread)
         }
     }
@@ -373,9 +373,6 @@ object Widgets {
     }
 
     private const val MAX_COUNT = 99
-    /** As many articles as the Headlines widget carries (§6). */
-    private const val MAX_HEADLINES = 20
-    private const val REQUEST_ROWS = 1
     private const val REQUEST_DAY = 2
     const val ACTION_DAY_CHANGE = "sh.hnet.news.widget.DAY_CHANGE"
     /** A thumbnail's box is 64 × 44 dp; decoded a little larger than its width. */

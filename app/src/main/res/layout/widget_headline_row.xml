@@ -1,16 +1,17 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- A row of the Headlines widget (SPEC-widgets §6): one strip with the article's thumbnail (or a tile with the feed symbol), its headline on two lines and its age. The space under the strip is the 6 dp between strips. Sizes are in dp, text too. -->
+<!-- A row of the Headlines widget (SPEC-widgets §6): one strip with the article's thumbnail (or a tile with the feed symbol), its headline on two lines and its age. The space under the strip is the 6 dp between strips. The rows share the widget's height equally (a weight each), so the strips fill it to the pixel whatever height the launcher reports. Sizes are in dp, text too. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="SpUsage,UselessParent,ContentDescription,HardcodedText"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content"
+    android:layout_height="0dp"
+    android:layout_weight="1"
     android:paddingBottom="6dp">
 
     <LinearLayout
         android:id="@+id/strip"
         android:layout_width="match_parent"
-        android:layout_height="56dp"
+        android:layout_height="match_parent"
         android:background="@drawable/widget_strip"
         android:gravity="center_vertical"
         android:orientation="horizontal"
