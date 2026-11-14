@@ -328,7 +328,7 @@
     <string name="msg_widget_unread_only">The widget shows unread articles only.</string>
     <string name="label_add_widget">Add widget</string>
     <string name="widget_newest_name">Newest article</string>
-    <string name="widget_newest_description">The newest unread article, with its picture.</string>
+    <string name="widget_newest_description">The newest unread article, with its image.</string>
     <string name="widget_headlines_name">Headlines</string>
     <string name="widget_headlines_description">A list of the newest unread articles.</string>
     <string name="content_description_widget_article" translatable="false">%1$s. %2$s</string>

@@ -140,12 +140,9 @@ fun NewsApp() {
 
     // A tap on a widget (SPEC-widgets §7.2): the list on the widget's source with "Unread only" on, "Saved only" off and
     // the search closed – the list's own filters, so it stays that way – or Add a feed from a widget with no feeds yet
-    val widgetRequest by app.widgetRequest.collectAsStateWithLifecycle()
-    LaunchedEffect(widgetRequest) {
-        val request = widgetRequest ?: return@LaunchedEffect
-        app.widgetRequest.value = null
-        while (stack.size > 1) stack.removeAt(stack.lastIndex)
-        viewer = null
+    // Taken one at a time from the flow itself, not as an effect keyed on the request: taking a request clears it, and an
+    // effect keyed on it would be cancelled by that very change before it got to open the article
+    LaunchedEffect(Unit) {
         suspend fun list(source: Source) {
             articles.closeSearch()
             app.preferences.setSource(source)
@@ -153,14 +150,20 @@ fun NewsApp() {
             app.preferences.setSavedOnly(false)
             articles.rebuild()
         }
-        when (request) {
-            is WidgetRequest.List -> list(request.source)
-            // The reader on that article; Back leads to the list set as above
-            is WidgetRequest.Article -> {
-                list(request.source)
-                if (articles.openReaderFor(request.source, request.id)) open(Screen.Reader(request.id))
+        app.widgetRequest.collect { request ->
+            if (request == null) return@collect
+            app.widgetRequest.value = null
+            while (stack.size > 1) stack.removeAt(stack.lastIndex)
+            viewer = null
+            when (request) {
+                is WidgetRequest.List -> list(request.source)
+                // The reader on that article; Back leads to the list set as above
+                is WidgetRequest.Article -> {
+                    list(request.source)
+                    if (articles.openReaderFor(request.source, request.id)) open(Screen.Reader(request.id))
+                }
+                WidgetRequest.AddFeed -> open(Screen.AddFeed())
             }
-            WidgetRequest.AddFeed -> open(Screen.AddFeed())
         }
     }
 
