@@ -16,6 +16,7 @@ import android.content.Intent
 import android.net.Uri
 import android.graphics.Bitmap
 import android.os.Bundle
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import androidx.core.content.edit
@@ -190,12 +191,16 @@ object Widgets {
             val options = manager.getAppWidgetOptions(id)
             // As many strips as fill the widget's height: the list does not scroll
             val strips = strips(options.height())
+            // About how tall a strip then is: what the thumbnail and the headline are fitted to
+            val stripDp = ((options.height() - LIST_TOP_DP).coerceAtLeast(STRIP_DP) - (strips - 1) * STRIP_GAP_DP) / strips
+            // The thumbnail fills the strip's height less its padding and keeps the designed 64 : 44
+            val thumbnailDp = ((stripDp - 2 * STRIP_PADDING_DP) * 64 / 44).coerceIn(64, MAX_THUMBNAIL_DP)
             val list = if (noFeeds) emptyList() else rows(source, strips)
-            val thumbnailWidth = (THUMBNAIL_DP * density).toInt()
+            val thumbnailWidth = (thumbnailDp * density).toInt()
             val thumbnails = list.associate { row -> row.article.id to row.article.imageUrl?.let { app.images.load(it, thumbnailWidth) }?.within(thumbnailWidth) }
             // Narrower than three cells' worth there is no room for the age (§6)
             val showAge = options.width() >= AGE_FROM_DP
-            drawn[id] = headlines(app, source, noFeeds, unreadOf(source, feeds, unread), list, thumbnails, showAge, strips)
+            drawn[id] = headlines(app, source, noFeeds, unreadOf(source, feeds, unread), list, thumbnails, showAge, strips, thumbnailDp, headlineLines = ((stripDp - 2 * STRIP_PADDING_DP) / HEADLINE_LINE_DP).coerceIn(2, MAX_HEADLINE_LINES))
         }
         withContext(Dispatchers.Main) {
             drawn.forEach { (id, views) ->
@@ -317,7 +322,7 @@ object Widgets {
     }
 
     /** Headlines, 4×2 and other sizes (§6): the newest unread articles of the source, one strip each, as many as the widget's height holds. */
-    private fun headlines(context: Context, source: Source, noFeeds: Boolean, unread: Int, rows: List<ArticleRow>, thumbnails: Map<Long, Bitmap?>, showAge: Boolean, strips: Int): RemoteViews {
+    private fun headlines(context: Context, source: Source, noFeeds: Boolean, unread: Int, rows: List<ArticleRow>, thumbnails: Map<Long, Bitmap?>, showAge: Boolean, strips: Int, thumbnailDp: Int, headlineLines: Int): RemoteViews {
         if (rows.isEmpty()) {
             return RemoteViews(context.packageName, R.layout.widget_headlines_state).apply {
                 setImageViewResource(R.id.strip_icon, if (noFeeds) R.drawable.ic_add else R.drawable.ic_check)
@@ -344,6 +349,9 @@ object Widgets {
                 addStableView(
                     R.id.list,
                     RemoteViews(context.packageName, R.layout.widget_headline_row).apply {
+                        // A taller strip has a larger thumbnail and room for more of the headline
+                        setViewLayoutWidth(R.id.strip_tile, thumbnailDp.toFloat(), TypedValue.COMPLEX_UNIT_DIP)
+                        setInt(R.id.strip_headline, "setMaxLines", headlineLines)
                         setTextViewText(R.id.strip_headline, article.title)
                         setTextViewText(R.id.strip_age, age)
                         setViewVisibility(R.id.strip_age, if (showAge) View.VISIBLE else View.GONE)
@@ -375,8 +383,11 @@ object Widgets {
     private const val MAX_COUNT = 99
     private const val REQUEST_DAY = 2
     const val ACTION_DAY_CHANGE = "sh.hnet.news.widget.DAY_CHANGE"
-    /** A thumbnail's box is 64 × 44 dp; decoded a little larger than its width. */
-    private const val THUMBNAIL_DP = 80
+    /** A strip's padding above and below its content, a headline's line, and how far both the thumbnail and the headline grow with a taller strip. */
+    private const val STRIP_PADDING_DP = 6
+    private const val HEADLINE_LINE_DP = 18
+    private const val MAX_HEADLINE_LINES = 4
+    private const val MAX_THUMBNAIL_DP = 120
     private const val AGE_FROM_DP = 300
     /** A strip as designed, the gap between two, and the list's distance from the widget's top (§3.4, §6). */
     private const val STRIP_DP = 56
