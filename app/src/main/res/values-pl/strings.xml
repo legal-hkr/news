@@ -326,4 +326,9 @@
     <string name="content_description_widget_all_read">Newsy. Wszystko przeczytane.</string>
     <string name="msg_widget_unread_only">Widżet pokazuje tylko nieprzeczytane artykuły.</string>
     <string name="label_add_widget">Dodaj widżet</string>
+    <string name="widget_newest_name">Najnowszy artykuł</string>
+    <string name="widget_newest_description">Najnowszy nieprzeczytany artykuł, z obrazem.</string>
+    <string name="widget_headlines_name">Nagłówki</string>
+    <string name="widget_headlines_description">Lista najnowszych nieprzeczytanych artykułów.</string>
+    <string name="label_age_yesterday">wczoraj</string>
 </resources>

@@ -2,6 +2,7 @@
 
 package sh.hnet.news.ui
 
+import sh.hnet.news.Source
 import sh.hnet.news.widget.WidgetRequest
 import androidx.compose.runtime.saveable.rememberSaveable
 import sh.hnet.news.ui.feeds.rememberOpmlActions
@@ -145,13 +146,19 @@ fun NewsApp() {
         app.widgetRequest.value = null
         while (stack.size > 1) stack.removeAt(stack.lastIndex)
         viewer = null
+        suspend fun list(source: Source) {
+            articles.closeSearch()
+            app.preferences.setSource(source)
+            app.preferences.setUnreadOnly(true)
+            app.preferences.setSavedOnly(false)
+            articles.rebuild()
+        }
         when (request) {
-            is WidgetRequest.List -> {
-                articles.closeSearch()
-                app.preferences.setSource(request.source)
-                app.preferences.setUnreadOnly(true)
-                app.preferences.setSavedOnly(false)
-                articles.rebuild()
+            is WidgetRequest.List -> list(request.source)
+            // The reader on that article; Back leads to the list set as above
+            is WidgetRequest.Article -> {
+                list(request.source)
+                if (articles.openReaderFor(request.source, request.id)) open(Screen.Reader(request.id))
             }
             WidgetRequest.AddFeed -> open(Screen.AddFeed())
         }

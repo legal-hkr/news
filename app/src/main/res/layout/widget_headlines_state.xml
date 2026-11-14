@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Headlines widget with nothing to show (SPEC-widgets §6): one strip at the top with a tile and "Everything read." or "Add the first feed" (then without the badge). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="SpUsage,UselessParent,ContentDescription,HardcodedText"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_floating_frame"
+    android:clipToOutline="true">
+
+    <FrameLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="12dp">
+
+        <LinearLayout
+            android:id="@+id/strip"
+            android:layout_width="match_parent"
+            android:layout_height="56dp"
+            android:background="@drawable/widget_strip"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="6dp"
+            android:paddingTop="6dp"
+            android:paddingEnd="14dp"
+            android:paddingBottom="6dp">
+
+            <!-- The thumbnail's place: a tile with a symbol, under the thumbnail when there is one -->
+            <FrameLayout
+                android:layout_width="64dp"
+                android:layout_height="44dp"
+                android:background="@drawable/widget_tile"
+                android:clipToOutline="true">
+
+                <ImageView
+                    android:id="@+id/strip_icon"
+                    android:layout_width="20dp"
+                    android:layout_height="20dp"
+                    android:layout_gravity="center"
+                    android:src="@drawable/ic_check"
+                    android:tint="@color/widget_on_surface_variant"
+                    tools:ignore="UseAppTint" />
+
+                <ImageView
+                    android:id="@+id/strip_thumbnail"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:scaleType="centerCrop" />
+            </FrameLayout>
+
+            <TextView
+                android:id="@+id/strip_headline"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:layout_weight="1"
+                android:ellipsize="end"
+                android:fontFamily="sans-serif-medium"
+                android:includeFontPadding="false"
+                android:lineSpacingExtra="2dp"
+                android:maxLines="2"
+                android:text=""
+                android:textColor="@color/widget_on_surface"
+                android:textSize="13.5dp" />
+
+            <TextView
+                android:id="@+id/strip_age"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="12dp"
+                android:includeFontPadding="false"
+                android:letterSpacing="0.03"
+                android:maxLines="1"
+                android:text=""
+                android:textColor="@color/widget_on_surface_variant"
+                android:textSize="11dp" />
+        </LinearLayout>
+    </FrameLayout>
+
+    <!-- The badge (§3.3, §3.4): the unread count of the source, not capped; it sticks out of the corner -->
+    <LinearLayout
+        android:id="@+id/badge"
+        android:layout_width="wrap_content"
+        android:layout_height="30dp"
+        android:background="@drawable/widget_pill"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="9dp"
+        android:paddingEnd="12dp">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_rss_feed"
+            android:tint="@color/widget_inverse_on_surface"
+            tools:ignore="UseAppTint" />
+
+        <TextView
+            android:id="@+id/badge_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="@color/widget_inverse_on_surface"
+            android:textSize="15dp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/badge_state"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_check"
+            android:tint="@color/widget_inverse_on_surface"
+            android:visibility="gone"
+            tools:ignore="UseAppTint" />
+    </LinearLayout>
+</FrameLayout>

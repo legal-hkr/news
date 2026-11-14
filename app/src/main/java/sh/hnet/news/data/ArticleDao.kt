@@ -22,6 +22,15 @@ interface ArticleDao {
     )
     fun observeRows(feedId: Long?, folderId: Long?): Flow<List<ArticleRow>>
 
+    /** The newest unread articles of a source, for the widgets and for the reader opened from one (SPEC-widgets §5–§7). */
+    @Query(
+        "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines, f.language AS feedLanguage, f.fullPage AS feedFullPage " +
+            "FROM article a JOIN feed f ON f.id = a.feedId " +
+            "WHERE a.gone = 0 AND a.read = 0 AND f.removedAt IS NULL AND (:feedId IS NULL OR a.feedId = :feedId) AND (:folderId IS NULL OR f.folderId = :folderId) " +
+            "ORDER BY a.published DESC, a.id DESC LIMIT :limit",
+    )
+    suspend fun unreadRows(feedId: Long?, folderId: Long?, limit: Int): List<ArticleRow>
+
     /** One article to show a look on: the feed's newest, or with [preferImage] the newest that names an image. */
     @Query(
         "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines, f.language AS feedLanguage, f.fullPage AS feedFullPage " +

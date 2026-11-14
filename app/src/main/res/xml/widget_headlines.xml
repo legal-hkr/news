@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Headlines (SPEC-widgets §6): four by two cells, resizable in both directions down to three by one (one strip). -->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    android:configure="sh.hnet.news.widget.WidgetSetupActivity"
+    android:description="@string/widget_headlines_description"
+    android:initialLayout="@layout/widget_headlines_state"
+    android:minWidth="250dp"
+    android:minHeight="110dp"
+    android:minResizeWidth="180dp"
+    android:minResizeHeight="56dp"
+    android:previewLayout="@layout/widget_headlines_preview"
+    android:resizeMode="horizontal|vertical"
+    android:targetCellWidth="4"
+    android:targetCellHeight="2"
+    android:updatePeriodMillis="0"
+    android:widgetCategory="home_screen"
+    android:widgetFeatures="reconfigurable" />

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Headlines widget (SPEC-widgets §6): the newest unread articles of the source as strips that scroll inside the widget, and the badge on the first strip's corner, which does not scroll. The list starts 8 dp from the start and 12 dp from the top, so the badge stays inside the widget's bounds. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="SpUsage,UselessParent,ContentDescription,HardcodedText"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_floating_frame"
+    android:clipToOutline="true">
+
+    <ListView
+        android:id="@+id/list"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="12dp"
+        android:divider="@null"
+        android:dividerHeight="0dp"
+        android:listSelector="@android:color/transparent"
+        android:scrollbars="none" />
+
+    <!-- The badge (§3.3, §3.4): the unread count of the source, not capped; it sticks out of the corner -->
+    <LinearLayout
+        android:id="@+id/badge"
+        android:layout_width="wrap_content"
+        android:layout_height="30dp"
+        android:background="@drawable/widget_pill"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="9dp"
+        android:paddingEnd="12dp">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_rss_feed"
+            android:tint="@color/widget_inverse_on_surface"
+            tools:ignore="UseAppTint" />
+
+        <TextView
+            android:id="@+id/badge_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="@color/widget_inverse_on_surface"
+            android:textSize="15dp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/badge_state"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_check"
+            android:tint="@color/widget_inverse_on_surface"
+            android:visibility="gone"
+            tools:ignore="UseAppTint" />
+    </LinearLayout>
+</FrameLayout>

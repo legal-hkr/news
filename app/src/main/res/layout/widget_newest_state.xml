@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The Newest article widget with nothing to show (SPEC-widgets §5): a tile with a check and "Everything read.", or a plus and "Add the first feed" (then without the badge). -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="SpUsage,UselessParent,ContentDescription,HardcodedText"
+    android:id="@android:id/background"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_floating_frame"
+    android:clipToOutline="true">
+
+    <LinearLayout
+        android:id="@+id/frame"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_marginStart="8dp"
+        android:layout_marginTop="10dp"
+        android:background="@drawable/widget_frame"
+        android:gravity="center"
+        android:orientation="vertical"
+        android:padding="14dp">
+
+        <FrameLayout
+            android:layout_width="56dp"
+            android:layout_height="44dp"
+            android:background="@drawable/widget_tile">
+
+            <ImageView
+                android:id="@+id/state"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_check"
+                android:tint="@color/widget_on_surface_variant"
+                tools:ignore="UseAppTint" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/state_text"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="12dp"
+            android:fontFamily="sans-serif-medium"
+            android:gravity="center"
+            android:includeFontPadding="false"
+            android:lineSpacingExtra="2dp"
+            android:textColor="@color/widget_on_surface"
+            android:textSize="14dp" />
+    </LinearLayout>
+
+    <!-- The badge (§3.3, §3.4): the unread count of the source, not capped; it sticks out of the corner -->
+    <LinearLayout
+        android:id="@+id/badge"
+        android:layout_width="wrap_content"
+        android:layout_height="30dp"
+        android:background="@drawable/widget_pill"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="9dp"
+        android:paddingEnd="12dp">
+
+        <ImageView
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_rss_feed"
+            android:tint="@color/widget_inverse_on_surface"
+            tools:ignore="UseAppTint" />
+
+        <TextView
+            android:id="@+id/badge_count"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="4dp"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="@color/widget_inverse_on_surface"
+            android:textSize="15dp"
+            android:textStyle="bold" />
+
+        <ImageView
+            android:id="@+id/badge_state"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:layout_marginStart="4dp"
+            android:src="@drawable/ic_check"
+            android:tint="@color/widget_inverse_on_surface"
+            android:visibility="gone"
+            tools:ignore="UseAppTint" />
+    </LinearLayout>
+</FrameLayout>

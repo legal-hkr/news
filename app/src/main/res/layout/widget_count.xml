@@ -3,8 +3,11 @@
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="SpUsage,UselessParent,ContentDescription"
+    android:id="@android:id/background"
     android:layout_width="match_parent"
-    android:layout_height="match_parent">
+    android:layout_height="match_parent"
+    android:background="@drawable/widget_floating_frame"
+    android:clipToOutline="true">
 
     <LinearLayout
         android:id="@+id/pill"

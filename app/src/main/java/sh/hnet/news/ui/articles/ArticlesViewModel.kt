@@ -126,6 +126,19 @@ class ArticlesViewModel(private val app: NewsApplication) : ViewModel() {
         keptUnread.clear()
     }
 
+    /**
+     * The reader opened from a widget (SPEC-widgets §7.2): it pages over the unread articles of the
+     * widget's source, newest first, whatever the list shows at that moment. False when the article
+     * is no longer among them (read meanwhile).
+     */
+    suspend fun openReaderFor(source: Source, articleId: Long): Boolean {
+        val rows = app.articles.unreadRows((source as? Source.Feed)?.id, (source as? Source.Folder)?.id, READER_ROWS)
+        if (rows.none { it.article.id == articleId }) return false
+        readerRows = rows
+        keptUnread.clear()
+        return true
+    }
+
     fun rebuild() {
         rebuilds.value++
     }
@@ -201,3 +214,6 @@ class ArticlesViewModel(private val app: NewsApplication) : ViewModel() {
         return ids
     }
 }
+
+/** As many articles as the reader pages over when it is opened from a widget. */
+private const val READER_ROWS = 500

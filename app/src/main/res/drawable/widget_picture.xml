@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The ground and outline of the picture in the Newest article widget: the picture is clipped to it (radius 18). -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android" android:shape="rectangle">
+    <solid android:color="@color/widget_surface_container_highest" />
+    <corners android:radius="18dp" />
+</shape>

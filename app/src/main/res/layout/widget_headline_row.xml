@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- A row of the Headlines widget (SPEC-widgets §6): one strip with the article's thumbnail (or a tile with the feed symbol), its headline on two lines and its age. The space under the strip is the 6 dp between strips. Sizes are in dp, text too. -->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="SpUsage,UselessParent,ContentDescription,HardcodedText"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:paddingBottom="6dp">
+
+    <LinearLayout
+        android:id="@+id/strip"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:background="@drawable/widget_strip"
+        android:gravity="center_vertical"
+        android:orientation="horizontal"
+        android:paddingStart="6dp"
+        android:paddingTop="6dp"
+        android:paddingEnd="14dp"
+        android:paddingBottom="6dp">
+
+        <!-- The thumbnail's place: a tile with a symbol, under the thumbnail when there is one -->
+        <FrameLayout
+            android:layout_width="64dp"
+            android:layout_height="44dp"
+            android:background="@drawable/widget_tile"
+            android:clipToOutline="true">
+
+            <ImageView
+                android:id="@+id/strip_icon"
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:layout_gravity="center"
+                android:src="@drawable/ic_rss_feed"
+                android:tint="@color/widget_on_surface_variant"
+                tools:ignore="UseAppTint" />
+
+            <ImageView
+                android:id="@+id/strip_thumbnail"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:scaleType="centerCrop" />
+        </FrameLayout>
+
+        <TextView
+            android:id="@+id/strip_headline"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:ellipsize="end"
+            android:fontFamily="sans-serif-medium"
+            android:includeFontPadding="false"
+            android:lineSpacingExtra="2dp"
+            android:maxLines="2"
+            android:text=""
+            android:textColor="@color/widget_on_surface"
+            android:textSize="13.5dp" />
+
+        <TextView
+            android:id="@+id/strip_age"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:includeFontPadding="false"
+            android:letterSpacing="0.03"
+            android:maxLines="1"
+            android:text=""
+            android:textColor="@color/widget_on_surface_variant"
+            android:textSize="11dp" />
+    </LinearLayout>
+</FrameLayout>
