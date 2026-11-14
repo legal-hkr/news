@@ -1,5 +1,9 @@
 package sh.hnet.news
 
+import sh.hnet.news.backup.BackupManager
+import android.content.SharedPreferences
+import kotlinx.coroutines.flow.MutableStateFlow
+import sh.hnet.news.data.Storage
 import sh.hnet.news.data.SearchIndex
 import sh.hnet.news.refresh.RefreshRequests
 import android.app.Application
@@ -45,9 +49,19 @@ class NewsApplication : Application() {
         }
     }
 
+    val storage: Storage by lazy { Storage(database.feedDao(), articles, images, preferences) }
+
+    /** An address shared to the app from a browser (SPEC §7.3), until the add page takes it. */
+    val sharedAddress = MutableStateFlow<String?>(null)
+
+    /** Memories that are not settings and survive Restore defaults: the last backup, the welcome having been seen. */
+    val stamps: SharedPreferences by lazy { getSharedPreferences("stamps", MODE_PRIVATE) }
+
+    val backup: BackupManager by lazy { BackupManager(this, database.feedDao(), articles, stamps) }
+
     val search: SearchIndex by lazy { SearchIndex(articles) }
 
-    val refresher: Refresher by lazy { Refresher(database.feedDao(), articles, http, images, preferences, search, appScope) }
+    val refresher: Refresher by lazy { Refresher(database.feedDao(), articles, http, images, preferences, search, appScope).also { it.afterRun = { storage.removeOld() } } }
 
     val refreshRequests: RefreshRequests by lazy { RefreshRequests(this, preferences, refresher, appScope) }
 
@@ -58,6 +72,7 @@ class NewsApplication : Application() {
             feeds.purgeRemoved()
             // Articles a refresh was still fetching when the process went
             articles.endFetching()
+            storage.removeOld()
             search.indexMissing()
             RefreshJobService.schedule(this@NewsApplication, preferences.refreshSettings())
         }

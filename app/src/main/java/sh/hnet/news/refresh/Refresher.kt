@@ -1,5 +1,6 @@
 package sh.hnet.news.refresh
 
+import kotlinx.coroutines.flow.first
 import sh.hnet.news.data.SearchIndex
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -65,6 +66,8 @@ class Refresher(
 
     /** Null while no refresh runs. */
     val progress: StateFlow<RefreshProgress?> = _progress
+    /** Called when a refresh ends, however it ends. */
+    var afterRun: suspend () -> Unit = {}
     private val running = AtomicBoolean(false)
     private var job: Job? = null
 
@@ -80,7 +83,10 @@ class Refresher(
             try {
                 run(feedIds, background, textOnly)
             } finally {
-                withContext(NonCancellable) { articleDao.endFetching() }
+                withContext(NonCancellable) {
+                    articleDao.endFetching()
+                    afterRun()
+                }
                 _progress.value = null
                 running.set(false)
             }
@@ -157,7 +163,18 @@ class Refresher(
         // What an earlier refresh left incomplete, before the new articles: those are tried once in this one
         if (!textOnly) completeEarlier(feed, fullPage, now)
         val known = articleDao.guids(feed.id).toHashSet()
+        // Rows of removed articles (SPEC §13) the feed no longer names have nothing left to guard against
+        val named = parsed.items.mapTo(HashSet()) { it.id }
+        articleDao.gone(feed.id).filter { it.guid !in named }.map { it.id }.chunked(500).forEach { articleDao.delete(it) }
+        // What is older than the feed keeps articles for is not fetched to be removed at once: it is noted as gone
+        val keepDays = feed.keepDays ?: preferences.keepDays.first()
+        val oldest = if (keepDays > 0) now - keepDays * DAY_MS else Long.MIN_VALUE
         val pending = parsed.items.filter { it.id !in known }.mapNotNull { item ->
+            val date = item.published?.toEpochMilli()
+            if (date != null && date < oldest) {
+                articleDao.insert(Article(feedId = feed.id, guid = item.id, title = item.title ?: item.link ?: "", link = item.link, author = null, published = date, firstSeen = now, preview = null, imageUrl = null, read = true, gone = true))
+                return@mapNotNull null
+            }
             val feedBlocks = HtmlBlocks.convert(item.contentHtml ?: item.summaryHtml ?: "", item.link ?: feed.url)
             val more = (fullPage && item.link != null) || (feed.storeImages && (item.imageUrl != null || Blocks.images(feedBlocks).isNotEmpty()))
             val article = Article(

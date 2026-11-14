@@ -79,6 +79,8 @@ class FeedRepository(private val dao: FeedDao, private val icons: FeedIcons, pri
 
     suspend fun setBackgroundRefresh(id: Long, on: Boolean) = dao.setBackgroundRefresh(id, on)
 
+    suspend fun setKeepDays(id: Long, days: Int?) = dao.setKeepDays(id, days)
+
     /** Unsubscribe (SPEC §8): the feed is gone from every list at once and for good once [purge] is called; [restore] takes it back. */
     suspend fun unsubscribe(id: Long) = dao.setRemoved(id, System.currentTimeMillis())
 
@@ -144,6 +146,12 @@ class FeedRepository(private val dao: FeedDao, private val icons: FeedIcons, pri
         }
         if (added.isNotEmpty()) onAdded(added)
         return added.size
+    }
+
+    /** Feeds a restore put in place (SPEC §14.6): their icons and their first fetch follow, as for new ones. */
+    fun restored(feeds: List<Feed>) {
+        feeds.forEach { fetchIcon(it.id, it.url, it.siteUrl, null) }
+        if (feeds.isNotEmpty()) onAdded(feeds.map { it.id })
     }
 
     /** Every feed with its folder's name, by folder and name, for the OPML export. */

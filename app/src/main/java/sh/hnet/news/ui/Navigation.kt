@@ -10,11 +10,14 @@ sealed interface Screen : NavKey {
     @Serializable data class Reader(val articleId: Long) : Screen
     @Serializable data object Settings : Screen
     @Serializable data object Feeds : Screen
-    @Serializable data object AddFeed : Screen
+    /** [address] when it came shared from another app: the lookup starts at once (SPEC §7.3). */
+    @Serializable data class AddFeed(val address: String? = null) : Screen
     @Serializable data class Feed(val id: Long) : Screen
     @Serializable data object SettingsRefresh : Screen
     @Serializable data object SettingsArticleList : Screen
     @Serializable data object SettingsReading : Screen
+    @Serializable data object SettingsStorage : Screen
+    @Serializable data object SettingsBackup : Screen
     @Serializable data object SettingsLanguage : Screen
     @Serializable data object SettingsReset : Screen
     @Serializable data object SettingsAbout : Screen

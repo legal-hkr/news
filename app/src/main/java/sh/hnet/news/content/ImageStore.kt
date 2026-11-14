@@ -87,6 +87,17 @@ class ImageStore(context: Context, private val http: HttpFetcher) {
         urls.forEach { file(it).delete() }
     }
 
+    /** Deletes every image but those of [urls] ("Clear images", SPEC §13.5). */
+    fun keepOnly(urls: Collection<String>) {
+        val kept = urls.mapTo(HashSet()) { file(it).name }
+        directory.listFiles()?.forEach { if (it.name !in kept) it.delete() }
+        decoded.evictAll()
+    }
+
+    fun totalBytes(): Long = directory.listFiles()?.sumOf { it.length() } ?: 0L
+
+    fun bytesOf(urls: Collection<String>): Long = urls.sumOf { file(it).length() }
+
     private companion object {
         const val MAX_BYTES = 12 * 1024 * 1024
     }

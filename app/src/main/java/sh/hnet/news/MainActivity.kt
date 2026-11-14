@@ -1,5 +1,6 @@
 package sh.hnet.news
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -19,8 +20,21 @@ class MainActivity : ComponentActivity() {
             val app = application as NewsApplication
             app.refreshRequests.onOpen()
         }
+        if (savedInstanceState == null) share(intent)
         setContent {
             NewsTheme { NewsApp() }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        share(intent)
+    }
+
+    /** "Share" on a page in a browser (SPEC §7.3): the first address in the shared text goes to Add a feed. */
+    private fun share(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND) return
+        val address = intent.getStringExtra(Intent.EXTRA_TEXT)?.let { Regex("""https?://\S+""", RegexOption.IGNORE_CASE).find(it)?.value } ?: return
+        (application as NewsApplication).sharedAddress.value = address
     }
 }

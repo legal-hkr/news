@@ -1,5 +1,8 @@
 package sh.hnet.news.ui.settings
 
+import sh.hnet.news.data.Usage
+import androidx.compose.runtime.produceState
+import android.text.format.Formatter
 import sh.hnet.news.ui.feeds.withProblems
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -16,11 +19,10 @@ import sh.hnet.news.ui.components.SettingsPage
 
 /**
  * The Settings root (SPEC §14.1), a page over the list. Grouped as Music's and Clock's: App
- * (language), Data (reset) and About on its own, after Feeds. The Reading group, Storage and Backup
- * join with their stages.
+ * (language), Data (storage, backup, reset) and About on its own, after Feeds.
  */
 @Composable
-fun SettingsRootScreen(onBack: () -> Unit, onOpenFeeds: () -> Unit, onOpenRefresh: () -> Unit, onOpenArticleList: () -> Unit, onOpenReading: () -> Unit, onOpenLanguage: () -> Unit, onOpenReset: () -> Unit, onOpenAbout: () -> Unit) {
+fun SettingsRootScreen(onBack: () -> Unit, onOpenFeeds: () -> Unit, onOpenRefresh: () -> Unit, onOpenArticleList: () -> Unit, onOpenReading: () -> Unit, onOpenStorage: () -> Unit, onOpenBackup: () -> Unit, onOpenLanguage: () -> Unit, onOpenReset: () -> Unit, onOpenAbout: () -> Unit) {
     val context = LocalContext.current
     val version = BuildConfig.VERSION_NAME.removePrefix("v")
     // Read on every composition: changing it recreates the activity anyway
@@ -62,6 +64,14 @@ fun SettingsRootScreen(onBack: () -> Unit, onOpenFeeds: () -> Unit, onOpenRefres
             }
         }
         SettingsGroup(stringResource(R.string.title_settings_group_data)) {
+            row { shapes ->
+                val usage by produceState<Usage?>(null) { value = app.storage.usage() }
+                val summary = usage?.let { stringResource(R.string.desc_storage, Formatter.formatShortFileSize(context, it.textBytes), Formatter.formatShortFileSize(context, it.imageBytes)) }
+                SettingsNavigationRow(shapes, R.drawable.ic_database, stringResource(R.string.title_storage), summary, onClick = onOpenStorage)
+            }
+            row { shapes ->
+                SettingsNavigationRow(shapes, R.drawable.ic_settings_backup_restore, stringResource(R.string.title_backup), stringResource(R.string.desc_backup_row), onClick = onOpenBackup)
+            }
             row { shapes ->
                 SettingsNavigationRow(shapes, R.drawable.ic_restart_alt, stringResource(R.string.title_settings_reset), stringResource(R.string.desc_settings_reset_row), onClick = onOpenReset)
             }

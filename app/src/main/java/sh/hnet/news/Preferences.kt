@@ -1,5 +1,6 @@
 package sh.hnet.news
 
+import sh.hnet.news.backup.BackupSettings
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
@@ -47,6 +48,9 @@ data class RefreshSettings(val intervalHours: Int = 3, val unmeteredOnly: Boolea
 /** The last refresh as the list's subtitle tells it (SPEC §4.8). [offline]: a later attempt found no network. */
 data class LastRefresh(val at: Long, val new: Int, val offline: Boolean)
 
+/** A week, 2 weeks, a month, 3 months, a year, no limit. */
+val KEEP_DAYS = listOf(7, 14, 30, 90, 365, 0)
+const val DEFAULT_KEEP_DAYS = 30
 val REFRESH_INTERVALS = listOf(0, 1, 3, 6, 12, 24)
 const val MAX_PREVIEW_LINES = 3
 /** The reader's text sizes in percent (SPEC §5.5). */
@@ -57,6 +61,7 @@ class Preferences(private val context: Context) {
     private val sourceKey = stringPreferencesKey("source")
     private val unreadOnlyKey = booleanPreferencesKey("unread_only")
     private val savedOnlyKey = booleanPreferencesKey("saved_only")
+    private val keepDaysKey = intPreferencesKey("keep_days")
     private val oldestFirstKey = booleanPreferencesKey("oldest_first")
     private val ownOrderKey = booleanPreferencesKey("own_feed_order")
     private val textSizeKey = intPreferencesKey("reader_text_size")
@@ -133,6 +138,47 @@ class Preferences(private val context: Context) {
         it[unmeteredKey] = settings.unmeteredOnly
         it[chargingKey] = settings.chargingOnly
         it[onOpenKey] = settings.onOpen
+    }
+
+    /** For how many days articles are kept (SPEC §13.1), one of [KEEP_DAYS]; 0 for no limit. */
+    val keepDays: Flow<Int> = context.settings.data.map { prefs -> (prefs[keepDaysKey] ?: DEFAULT_KEEP_DAYS).takeIf { it in KEEP_DAYS } ?: DEFAULT_KEEP_DAYS }.distinctUntilChanged()
+
+    suspend fun setKeepDays(days: Int) = context.settings.edit { it[keepDaysKey] = days }
+
+    /** Whether anything at all was ever stored here: a fresh install has nothing. */
+    suspend fun hasAnySetting(): Boolean = context.settings.data.first().asMap().isNotEmpty()
+
+    /** The settings as a backup holds them (SPEC §14.6); the source is filled in by the backup, which knows names for ids. */
+    suspend fun backupSettings(): BackupSettings {
+        val prefs = context.settings.data.first()
+        return BackupSettings(
+            unreadOnly = prefs[unreadOnlyKey], savedOnly = prefs[savedOnlyKey], oldestFirst = prefs[oldestFirstKey], ownFeedOrder = prefs[ownOrderKey],
+            look = prefs[lookKey], previewLines = prefs[previewLinesKey], textSize = prefs[textSizeKey], serif = prefs[serifKey],
+            markReadOnScroll = prefs[markOnScrollKey], keepDays = prefs[keepDaysKey],
+            refreshIntervalHours = prefs[intervalKey], refreshUnmeteredOnly = prefs[unmeteredKey], refreshChargingOnly = prefs[chargingKey], refreshOnOpen = prefs[onOpenKey],
+        )
+    }
+
+    /** Replaces every setting with the backup's; one it doesn't have returns to its default. Values are checked where they are read. */
+    suspend fun restoreSettings(settings: BackupSettings, source: Source) = context.settings.edit { prefs ->
+        fun <T> put(key: androidx.datastore.preferences.core.Preferences.Key<T>, value: T?) {
+            if (value == null) prefs.remove(key) else prefs[key] = value
+        }
+        prefs[sourceKey] = source.encode()
+        put(unreadOnlyKey, settings.unreadOnly)
+        put(savedOnlyKey, settings.savedOnly)
+        put(oldestFirstKey, settings.oldestFirst)
+        put(ownOrderKey, settings.ownFeedOrder)
+        put(lookKey, settings.look)
+        put(previewLinesKey, settings.previewLines)
+        put(textSizeKey, settings.textSize)
+        put(serifKey, settings.serif)
+        put(markOnScrollKey, settings.markReadOnScroll)
+        put(keepDaysKey, settings.keepDays)
+        put(intervalKey, settings.refreshIntervalHours)
+        put(unmeteredKey, settings.refreshUnmeteredOnly)
+        put(chargingKey, settings.refreshChargingOnly)
+        put(onOpenKey, settings.refreshOnOpen)
     }
 
     /** A memory, not a setting: it survives Restore defaults. */

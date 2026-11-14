@@ -60,6 +60,8 @@ data class Feed(
     @ColumnInfo(defaultValue = "0") val ownLook: Boolean = false,
     val look: String? = null,
     @ColumnInfo(defaultValue = "0") val previewLines: Int = 0,
+    /** For how many days this feed's articles are kept (SPEC §8, §13.1): null as in the app, 0 for no limit. */
+    val keepDays: Int? = null,
     /** The language the feed names for itself (a tag such as "pl" or "en-US"), for hyphenation in the reader (SPEC §5.4). */
     val language: String? = null,
 )
@@ -92,7 +94,12 @@ data class Article(
     @ColumnInfo(defaultValue = "0") val readOffset: Int = 0,
     /** The version chosen for this article alone ([ArticleVersion] by number, SPEC §5.8). */
     @ColumnInfo(defaultValue = "0") val version: Int = 0,
+    /** Removed for its age or by "Clear stored articles" (SPEC §13): shown nowhere, kept only so the feed's next refresh knows it. */
+    @ColumnInfo(defaultValue = "0") val gone: Boolean = false,
 )
+
+/** A removed article's row and what its feed knows it by. */
+data class GoneArticle(val id: Long, val guid: String)
 
 /** Which of an article's two bodies the reader shows. */
 object ArticleVersion {

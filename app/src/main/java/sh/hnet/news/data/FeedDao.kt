@@ -14,6 +14,16 @@ interface FeedDao {
     @Query("SELECT * FROM feed WHERE removedAt IS NULL")
     suspend fun feeds(): List<Feed>
 
+    /** Removed feeds too: those kept for their saved articles (SPEC §13.2). */
+    @Query("SELECT * FROM feed")
+    suspend fun everyFeed(): List<Feed>
+
+    @Query("DELETE FROM feed")
+    suspend fun deleteAllFeeds()
+
+    @Query("DELETE FROM folder")
+    suspend fun deleteAllFolders()
+
     @Query("SELECT * FROM feed WHERE id = :id AND removedAt IS NULL")
     fun observeFeed(id: Long): Flow<Feed?>
 
@@ -37,6 +47,9 @@ interface FeedDao {
 
     @Query("UPDATE feed SET storeImages = :on WHERE id = :id")
     suspend fun setStoreImages(id: Long, on: Boolean)
+
+    @Query("UPDATE feed SET keepDays = :days WHERE id = :id")
+    suspend fun setKeepDays(id: Long, days: Int?)
 
     @Query("UPDATE feed SET backgroundRefresh = :on WHERE id = :id")
     suspend fun setBackgroundRefresh(id: Long, on: Boolean)

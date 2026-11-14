@@ -22,6 +22,11 @@ class FeedIcons(private val context: Context, private val http: HttpFetcher) {
 
     fun file(feedId: Long): File = File(directory, "$feedId.png")
 
+    /** Every icon, when a restore replaces the feeds. */
+    fun clear() {
+        directory.listFiles()?.forEach { it.delete() }
+    }
+
     fun delete(feedId: Long) {
         file(feedId).delete()
     }

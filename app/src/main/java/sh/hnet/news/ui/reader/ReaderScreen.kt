@@ -340,16 +340,20 @@ private suspend fun load(app: NewsApplication, state: PageState) {
     state.article = article
 }
 
-/** The article's lead image when the body does not show it itself; it then opens the article. */
-private fun leadImage(state: PageState, app: NewsApplication): Block.Image? {
+/**
+ * The article's lead image when the body does not show it itself; it then opens the article. One
+ * that is not on the phone (cleared, or never stored) is shown too, as the placeholder that offers
+ * to fetch it – the same as an image of the body.
+ */
+private fun leadImage(state: PageState): Block.Image? {
     val url = state.article?.imageUrl ?: return null
-    if (!app.images.has(url) || Blocks.images(state.blocks).any { it.url == url }) return null
+    if (Blocks.images(state.blocks).any { it.url == url }) return null
     return Block.Image(url)
 }
 
 /** The images of the article that are on the phone, in reading order: what the viewer pages over. */
 private fun shownImages(state: PageState, app: NewsApplication): List<String> =
-    (listOfNotNull(leadImage(state, app)?.url) + Blocks.images(state.blocks).map { it.url }).distinct().filter { app.images.has(it) }
+    (listOfNotNull(leadImage(state)?.url) + Blocks.images(state.blocks).map { it.url }).distinct().filter { app.images.has(it) }
 
 @Composable
 private fun ArticlePage(state: PageState, next: ArticleRow?, modifier: Modifier, onNext: () -> Unit, onFetchPage: () -> Unit) {
@@ -379,7 +383,7 @@ private fun ArticlePage(state: PageState, next: ArticleRow?, modifier: Modifier,
         // The feed wants full pages and this article's is not on the phone (SPEC §5.10)
         val missing = (article.state == ArticleState.INCOMPLETE || article.state == ArticleState.NOT_EXTRACTED) && state.page == null && state.row.feedFullPage && article.link != null
         val offline = remember(article.state, state.busy) { context.getSystemService(ConnectivityManager::class.java).activeNetwork == null }
-        val lead = remember(blocks, article.imageUrl) { leadImage(state, app) }
+        val lead = remember(blocks, article.imageUrl) { leadImage(state) }
         val column = Modifier.widthIn(max = 600.dp).fillMaxWidth()
         LazyColumn(
             state = list,

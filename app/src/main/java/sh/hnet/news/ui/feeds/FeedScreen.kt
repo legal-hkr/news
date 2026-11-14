@@ -2,6 +2,11 @@
 
 package sh.hnet.news.ui.feeds
 
+import androidx.compose.ui.text.AnnotatedString
+import sh.hnet.news.ui.components.SingleChoiceDialog
+import sh.hnet.news.ui.settings.keepName
+import sh.hnet.news.KEEP_DAYS
+import sh.hnet.news.DEFAULT_KEEP_DAYS
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.size
@@ -85,7 +90,7 @@ import sh.hnet.news.ui.components.settingsRowColors
 /**
  * A feed's page (SPEC §8): its name, address and folder, its content source, whether its images are
  * stored and whether it refreshes in the background; Unsubscribe at the end, at once with Undo.
- * "Keep articles" joins with the stage that gives it meaning.
+ * How long its articles are kept is its own or the app's (§13.1).
  */
 @Composable
 fun FeedScreen(feedId: Long, onBack: () -> Unit, snackbars: SnackbarHostState, messageScope: CoroutineScope) {
@@ -100,6 +105,8 @@ fun FeedScreen(feedId: Long, onBack: () -> Unit, snackbars: SnackbarHostState, m
     var renaming by rememberSaveable { mutableStateOf(false) }
     var editingAddress by rememberSaveable { mutableStateOf(false) }
     var pickingFolder by rememberSaveable { mutableStateOf(false) }
+    var pickingKeep by rememberSaveable { mutableStateOf(false) }
+    val appKeepDays by app.preferences.keepDays.collectAsStateWithLifecycle(DEFAULT_KEEP_DAYS)
     val unsubscribed = stringResource(R.string.msg_unsubscribed)
     val undo = stringResource(R.string.button_undo)
     val folder = folders.firstOrNull { it.id == feed.folderId }
@@ -131,6 +138,9 @@ fun FeedScreen(feedId: Long, onBack: () -> Unit, snackbars: SnackbarHostState, m
             }
             row { shapes ->
                 SettingsSwitchRow(shapes, R.drawable.ic_sync, stringResource(R.string.label_refresh_in_background), feed.backgroundRefresh, { on -> scope.launch { app.feeds.setBackgroundRefresh(feed.id, on) } })
+            }
+            row { shapes ->
+                ValueRow(shapes, R.drawable.ic_history, stringResource(R.string.label_keep_articles), feed.keepDays?.let { keepName(it) } ?: stringResource(R.string.label_keep_as_in_app, keepName(appKeepDays).lowercase())) { pickingKeep = true }
             }
         }
         // The feed's rows follow the app's look until it gets its own (SPEC §4.10)
@@ -176,6 +186,25 @@ fun FeedScreen(feedId: Long, onBack: () -> Unit, snackbars: SnackbarHostState, m
         }
     }
     if (editingAddress) AddressDialog(feed, onDismiss = { editingAddress = false })
+    if (pickingKeep) {
+        // "As in the app (a month)" first, then the periods of Settings › Storage (SPEC §8)
+        val asInApp = stringResource(R.string.label_keep_as_in_app, keepName(appKeepDays).lowercase())
+        SingleChoiceDialog(
+            title = AnnotatedString(stringResource(R.string.label_keep_articles)),
+            options = listOf<Int?>(null) + KEEP_DAYS,
+            initial = feed.keepDays,
+            label = { days -> if (days == null) asInApp else keepName(days) },
+            confirmLabel = stringResource(R.string.button_save),
+            onConfirm = { days ->
+                pickingKeep = false
+                scope.launch {
+                    app.feeds.setKeepDays(feed.id, days)
+                    app.storage.removeOld()
+                }
+            },
+            onDismiss = { pickingKeep = false },
+        )
+    }
     if (pickingFolder) {
         FolderPicker(folders, folder?.let { FolderChoice.Existing(it) } ?: FolderChoice.None, onDismiss = { pickingFolder = false }) { choice ->
             pickingFolder = false

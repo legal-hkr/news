@@ -2,6 +2,14 @@
 
 package sh.hnet.news.ui
 
+import androidx.compose.runtime.saveable.rememberSaveable
+import sh.hnet.news.ui.feeds.rememberOpmlActions
+import sh.hnet.news.ui.welcome.WelcomeScreen
+import sh.hnet.news.ui.welcome.WelcomeChoice
+import sh.hnet.news.ui.welcome.Welcome
+import sh.hnet.news.ui.settings.rememberRestoreAction
+import sh.hnet.news.ui.settings.BackupScreen
+import sh.hnet.news.ui.settings.StorageScreen
 import androidx.compose.animation.core.FiniteAnimationSpec
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -118,6 +126,22 @@ fun NewsApp() {
 
     val back: () -> Unit = { if (stack.size > 1) stack.removeAt(stack.lastIndex) }
     val open: (Screen) -> Unit = { stack.add(it) }
+    // An address shared from a browser opens Add a feed over whatever is shown (SPEC §7.3)
+    val sharedAddress by app.sharedAddress.collectAsStateWithLifecycle()
+    LaunchedEffect(sharedAddress) {
+        sharedAddress?.let { address ->
+            app.sharedAddress.value = null
+            stack.removeAll { it is Screen.AddFeed }
+            open(Screen.AddFeed(address))
+        }
+    }
+
+    // The first start (SPEC §15): the welcome page lies over the list until one of its ways to begin is taken.
+    // Until it is known whether this is a first start, nothing is drawn: no flash of the empty list before the page
+    var welcome by rememberSaveable { mutableStateOf<Boolean?>(null) }
+    LaunchedEffect(Unit) { if (welcome == null) welcome = Welcome.isNeeded(app) }
+    val welcomeOpml = rememberOpmlActions(snackbars, scope)
+    val welcomeRestore = rememberRestoreAction(snackbars, scope)
 
     Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
         Box(Modifier.fillMaxSize()) {
@@ -139,18 +163,19 @@ fun NewsApp() {
                 },
                 entryProvider = entryProvider<NavKey> {
                     entry<Screen.Articles> {
-                        ArticlesScreen(articles, onOpenSettings = { open(Screen.Settings) }, onOpenArticle = { open(Screen.Reader(it)) }, onAddFeed = { open(Screen.AddFeed) }, snackbars = snackbars, messageScope = scope)
+                        ArticlesScreen(articles, onOpenSettings = { open(Screen.Settings) }, onOpenArticle = { open(Screen.Reader(it)) }, onAddFeed = { open(Screen.AddFeed()) }, snackbars = snackbars, messageScope = scope)
                     }
                     entry<Screen.Reader> { key ->
                         ReaderScreen(articles, key.articleId, onBack = back, onShowImages = { urls, index -> if (urls.isNotEmpty()) viewer = urls to index }, snackbars = snackbars, messageScope = scope)
                     }
                     entry<Screen.Feeds> {
                         CompositionLocalProvider(LocalSnackbarLift provides snackbarLift) {
-                            FeedsScreen(onBack = back, onAddFeed = { open(Screen.AddFeed) }, onOpenFeed = { open(Screen.Feed(it)) }, snackbars = snackbars, messageScope = scope)
+                            FeedsScreen(onBack = back, onAddFeed = { open(Screen.AddFeed()) }, onOpenFeed = { open(Screen.Feed(it)) }, snackbars = snackbars, messageScope = scope)
                         }
                     }
-                    entry<Screen.AddFeed> {
+                    entry<Screen.AddFeed> { key ->
                         AddFeedScreen(
+                            shared = key.address,
                             onBack = back,
                             // The feed's page takes this page's place: Back from it returns to where adding began
                             onOpenFeed = { id ->
@@ -174,6 +199,8 @@ fun NewsApp() {
                             onOpenRefresh = { open(Screen.SettingsRefresh) },
                             onOpenArticleList = { open(Screen.SettingsArticleList) },
                             onOpenReading = { open(Screen.SettingsReading) },
+                            onOpenStorage = { open(Screen.SettingsStorage) },
+                            onOpenBackup = { open(Screen.SettingsBackup) },
                             onOpenLanguage = { open(Screen.SettingsLanguage) },
                             onOpenReset = { open(Screen.SettingsReset) },
                             onOpenAbout = { open(Screen.SettingsAbout) },
@@ -182,6 +209,8 @@ fun NewsApp() {
                     entry<Screen.SettingsRefresh> { RefreshSettingsScreen(onBack = back) }
                     entry<Screen.SettingsArticleList> { ArticleListSettingsScreen(onBack = back) }
                     entry<Screen.SettingsReading> { ReadingSettingsScreen(onBack = back) }
+                    entry<Screen.SettingsStorage> { StorageScreen(onBack = back) }
+                    entry<Screen.SettingsBackup> { BackupScreen(onBack = back, snackbars = snackbars, messageScope = scope) }
                     entry<Screen.SettingsLanguage> { LanguageScreen(onBack = back) }
                     entry<Screen.SettingsReset> { ResetScreen(onBack = back) }
                     entry<Screen.SettingsAbout> {
@@ -197,6 +226,22 @@ fun NewsApp() {
                     entry<Screen.SettingsLicenses> { LicensesScreen(onBack = back) }
                 },
             )
+            if (welcome != false) {
+                Surface(Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.surface) {
+                    if (welcome == true) {
+                        WelcomeScreen { choice ->
+                            Welcome.seen(app)
+                            welcome = false
+                            when (choice) {
+                                // Add a feed, not the empty list, which would only offer the same button
+                                WelcomeChoice.START_FRESH -> open(Screen.AddFeed())
+                                WelcomeChoice.IMPORT -> welcomeOpml.import()
+                                WelcomeChoice.RESTORE -> welcomeRestore.pick()
+                            }
+                        }
+                    }
+                }
+            }
             viewer?.let { (urls, index) ->
                 ImageViewerScreen(urls, index, onClose = { viewer = null }) { text ->
                     scope.launch {

@@ -17,7 +17,7 @@ interface ArticleDao {
     @Query(
         "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines, f.language AS feedLanguage, f.fullPage AS feedFullPage " +
             "FROM article a JOIN feed f ON f.id = a.feedId " +
-            "WHERE (f.removedAt IS NULL OR a.saved = 1) AND (:feedId IS NULL OR a.feedId = :feedId) AND (:folderId IS NULL OR f.folderId = :folderId) " +
+            "WHERE a.gone = 0 AND (f.removedAt IS NULL OR a.saved = 1) AND (:feedId IS NULL OR a.feedId = :feedId) AND (:folderId IS NULL OR f.folderId = :folderId) " +
             "ORDER BY a.published DESC, a.id DESC",
     )
     fun observeRows(feedId: Long?, folderId: Long?): Flow<List<ArticleRow>>
@@ -25,15 +25,15 @@ interface ArticleDao {
     /** One article to show a look on: the feed's newest, or with [preferImage] the newest that names an image. */
     @Query(
         "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines, f.language AS feedLanguage, f.fullPage AS feedFullPage " +
-            "FROM article a JOIN feed f ON f.id = a.feedId WHERE f.removedAt IS NULL AND (:feedId IS NULL OR a.feedId = :feedId) " +
+            "FROM article a JOIN feed f ON f.id = a.feedId WHERE a.gone = 0 AND f.removedAt IS NULL AND (:feedId IS NULL OR a.feedId = :feedId) " +
             "ORDER BY CASE WHEN :preferImage AND a.imageUrl IS NOT NULL THEN 0 ELSE 1 END, a.published DESC LIMIT 1",
     )
     suspend fun sample(feedId: Long?, preferImage: Boolean): ArticleRow?
 
-    @Query("SELECT a.feedId AS feedId, COUNT(*) AS count FROM article a JOIN feed f ON f.id = a.feedId WHERE a.read = 0 AND f.removedAt IS NULL GROUP BY a.feedId")
+    @Query("SELECT a.feedId AS feedId, COUNT(*) AS count FROM article a JOIN feed f ON f.id = a.feedId WHERE a.read = 0 AND a.gone = 0 AND f.removedAt IS NULL GROUP BY a.feedId")
     fun observeUnread(): Flow<List<UnreadCount>>
 
-    @Query("SELECT COUNT(*) FROM article a JOIN feed f ON f.id = a.feedId WHERE f.removedAt IS NULL")
+    @Query("SELECT COUNT(*) FROM article a JOIN feed f ON f.id = a.feedId WHERE a.gone = 0 AND f.removedAt IS NULL")
     fun observeCount(): Flow<Int>
 
     @Query("SELECT guid FROM article WHERE feedId = :feedId")
@@ -56,7 +56,7 @@ interface ArticleDao {
     suspend fun setCompleted(id: Long, state: Int, imageUrl: String?, words: Int)
 
     /** A feed's articles the next refresh completes (SPEC §10.5): the newest of those first seen since [since]. */
-    @Query("SELECT * FROM article WHERE feedId = :feedId AND state = 2 AND firstSeen >= :since ORDER BY published DESC LIMIT :limit")
+    @Query("SELECT * FROM article WHERE feedId = :feedId AND state = 2 AND gone = 0 AND firstSeen >= :since ORDER BY published DESC LIMIT :limit")
     suspend fun incomplete(feedId: Long, since: Long, limit: Int): List<Article>
 
     @Query("SELECT * FROM article WHERE id = :id")
@@ -78,7 +78,7 @@ interface ArticleDao {
     @Query("SELECT articleId FROM article_search WHERE instr(folded, :query) > 0")
     suspend fun find(query: String): List<Long>
 
-    @Query("SELECT id FROM article WHERE id NOT IN (SELECT articleId FROM article_search)")
+    @Query("SELECT id FROM article WHERE gone = 0 AND id NOT IN (SELECT articleId FROM article_search)")
     suspend fun unindexed(): List<Long>
 
     @Query("DELETE FROM article_search WHERE articleId NOT IN (SELECT id FROM article)")
@@ -86,6 +86,71 @@ interface ArticleDao {
 
     @Query("SELECT COUNT(*) FROM article WHERE feedId = :feedId")
     suspend fun count(feedId: Long): Int
+
+    // Backup and restore (SPEC §14.6)
+
+    @Query("SELECT * FROM article WHERE saved = 1 AND gone = 0 ORDER BY published DESC")
+    suspend fun saved(): List<Article>
+
+    @Query("DELETE FROM article")
+    suspend fun deleteAll()
+
+    @Query("DELETE FROM article_content")
+    suspend fun deleteAllContents()
+
+    @Query("DELETE FROM article_search")
+    suspend fun deleteAllSearch()
+
+    // Storage (SPEC §13): what goes by age or by the clearing actions, and what is in use
+
+    @Query("SELECT id FROM article WHERE feedId = :feedId AND saved = 0 AND gone = 0 AND published < :before")
+    suspend fun olderThan(feedId: Long, before: Long): List<Long>
+
+    @Query("SELECT id FROM article WHERE saved = 0 AND gone = 0")
+    suspend fun unsavedIds(): List<Long>
+
+    @Query("SELECT COUNT(*) FROM article WHERE saved = 0 AND gone = 0")
+    suspend fun unsavedCount(): Int
+
+    @Query("SELECT imageUrl FROM article WHERE id IN (:ids) AND imageUrl IS NOT NULL")
+    suspend fun leadImagesOf(ids: List<Long>): List<String>
+
+    @Query("SELECT * FROM article_content WHERE articleId IN (:ids)")
+    suspend fun contentsOf(ids: List<Long>): List<ArticleContent>
+
+    @Query("SELECT imageUrl FROM article WHERE saved = 1 AND imageUrl IS NOT NULL")
+    suspend fun savedLeadImages(): List<String>
+
+    @Query("SELECT c.feed AS feed, c.page AS page, c.articleId AS articleId FROM article_content c JOIN article a ON a.id = c.articleId WHERE a.saved = 1")
+    suspend fun savedContents(): List<ArticleContent>
+
+    @Query("DELETE FROM article_content WHERE articleId IN (:ids)")
+    suspend fun deleteContentsOf(ids: List<Long>)
+
+    @Query("DELETE FROM article_search WHERE articleId IN (:ids)")
+    suspend fun deleteSearchOf(ids: List<Long>)
+
+    /** The rows stay, emptied, so their feeds' next refresh does not bring the articles back as new. */
+    @Query("UPDATE article SET gone = 1, read = 1, preview = NULL, imageUrl = NULL WHERE id IN (:ids)")
+    suspend fun setGone(ids: List<Long>)
+
+    @Query("SELECT id, guid FROM article WHERE feedId = :feedId AND gone = 1")
+    suspend fun gone(feedId: Long): List<GoneArticle>
+
+    @Query("DELETE FROM article WHERE id IN (:ids)")
+    suspend fun delete(ids: List<Long>)
+
+    @Query("SELECT COALESCE(SUM(COALESCE(LENGTH(CAST(feed AS BLOB)), 0) + COALESCE(LENGTH(CAST(page AS BLOB)), 0)), 0) FROM article_content")
+    suspend fun textBytes(): Long
+
+    @Query(
+        "SELECT COALESCE(SUM(COALESCE(LENGTH(CAST(c.feed AS BLOB)), 0) + COALESCE(LENGTH(CAST(c.page AS BLOB)), 0)), 0) " +
+            "FROM article_content c JOIN article a ON a.id = c.articleId WHERE a.saved = 0",
+    )
+    suspend fun unsavedTextBytes(): Long
+
+    @Query("SELECT COALESCE(SUM(LENGTH(CAST(folded AS BLOB))), 0) FROM article_search")
+    suspend fun searchBytes(): Long
 
     @Query("UPDATE article SET read = :read WHERE id IN (:ids)")
     suspend fun setRead(ids: List<Long>, read: Boolean)

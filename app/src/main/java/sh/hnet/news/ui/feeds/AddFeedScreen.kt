@@ -83,14 +83,15 @@ import sh.hnet.news.ui.components.settingsRowColors
  * Add a feed (SPEC §7): a page with one field that takes a feed's or a site's address, then, on the
  * same page, the preview of the feed found, where it gets its name, folder and content source.
  *
+ * @param shared An address shared from another app (SPEC §7.3): it fills the field and is looked up at once
  * @param onOpenFeed Opens the page of a feed that turned out to be subscribed already
  * @param onSubscribed Called with the new feed's name once it is subscribed; the caller leaves the page
  */
 @Composable
-fun AddFeedScreen(onBack: () -> Unit, onOpenFeed: (Long) -> Unit, onSubscribed: (String) -> Unit) {
+fun AddFeedScreen(shared: String? = null, onBack: () -> Unit, onOpenFeed: (Long) -> Unit, onSubscribed: (String) -> Unit) {
     val app = LocalContext.current.applicationContext as NewsApplication
     val scope = rememberCoroutineScope()
-    var address by rememberSaveable { mutableStateOf("") }
+    var address by rememberSaveable { mutableStateOf(shared.orEmpty()) }
     var looking by remember { mutableStateOf<Job?>(null) }
     var error by remember { mutableStateOf<Int?>(null) }
     // Several feeds to choose from
@@ -124,6 +125,15 @@ fun AddFeedScreen(onBack: () -> Unit, onOpenFeed: (Long) -> Unit, onSubscribed: 
         if (address.isNotBlank() && looking == null) look {
             val found = app.finder.find(address)
             if (found.size == 1) arrived(found.single()) else { offered = found; chosen = 0 }
+        }
+    }
+
+    // Once: not again after a rotation or on coming back to the page
+    var sharedLooked by rememberSaveable { mutableStateOf(false) }
+    LaunchedEffect(Unit) {
+        if (shared != null && !sharedLooked) {
+            sharedLooked = true
+            find()
         }
     }
 
