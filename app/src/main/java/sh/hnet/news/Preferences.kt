@@ -56,6 +56,7 @@ val TEXT_SIZES = listOf(85, 100, 115, 130, 150)
 class Preferences(private val context: Context) {
     private val sourceKey = stringPreferencesKey("source")
     private val unreadOnlyKey = booleanPreferencesKey("unread_only")
+    private val savedOnlyKey = booleanPreferencesKey("saved_only")
     private val oldestFirstKey = booleanPreferencesKey("oldest_first")
     private val ownOrderKey = booleanPreferencesKey("own_feed_order")
     private val textSizeKey = intPreferencesKey("reader_text_size")
@@ -79,6 +80,10 @@ class Preferences(private val context: Context) {
     val unreadOnly: Flow<Boolean> = context.settings.data.map { it[unreadOnlyKey] ?: true }.distinctUntilChanged()
 
     suspend fun setUnreadOnly(on: Boolean) = context.settings.edit { it[unreadOnlyKey] = on }
+
+    val savedOnly: Flow<Boolean> = context.settings.data.map { it[savedOnlyKey] ?: false }.distinctUntilChanged()
+
+    suspend fun setSavedOnly(on: Boolean) = context.settings.edit { it[savedOnlyKey] = on }
 
     val oldestFirst: Flow<Boolean> = context.settings.data.map { it[oldestFirstKey] ?: false }.distinctUntilChanged()
 

@@ -1,7 +1,35 @@
-@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class)
+@file:OptIn(ExperimentalMaterial3Api::class, ExperimentalMaterial3ExpressiveApi::class, ExperimentalLayoutApi::class)
 
 package sh.hnet.news.ui.articles
 
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import sh.hnet.news.data.Passage
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.runtime.produceState
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.rememberSearchBarState
+import androidx.compose.material3.SearchBarDefaults
+import androidx.compose.foundation.text.input.clearText
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.background
+import androidx.compose.animation.Crossfade
+import androidx.activity.compose.BackHandler
 import sh.hnet.news.ui.feeds.withProblems
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.TextButton
@@ -89,9 +117,9 @@ import java.time.ZoneId
 
 /**
  * The app's one screen (SPEC §3.1, §4): the list of articles, with its refresh state as the top
- * bar's subtitle, the filters in a floating toolbar (Source, Unread only, Mark all as read) and the
- * states of §4.9. Search and "Saved only" join with stage 6; until the reader exists (stage 4) a
- * tap marks the article read and opens its link in the browser.
+ * bar's subtitle, the filters in a floating toolbar (Source, Unread only, Saved only, Mark all as
+ * read) and the states of §4.9. Search (§11) turns the top bar into a field and the rows into its
+ * results; the filters go on working on them.
  */
 @Composable
 fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenArticle: (Long) -> Unit, onAddFeed: () -> Unit, snackbars: SnackbarHostState, messageScope: CoroutineScope) {
@@ -103,6 +131,10 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
     val list by model.list.collectAsStateWithLifecycle()
     val source by model.source.collectAsStateWithLifecycle()
     val unreadOnly by model.unreadOnly.collectAsStateWithLifecycle()
+    val savedOnly by model.savedOnly.collectAsStateWithLifecycle()
+    val keyboard = LocalSoftwareKeyboardController.current
+    // System Back closes the search before it leaves the app (SPEC §3.2)
+    BackHandler(model.searching) { model.closeSearch() }
     val progress by app.refresher.progress.collectAsStateWithLifecycle()
     val lastRefresh by app.preferences.lastRefresh.collectAsStateWithLifecycle(null)
     val stored by remember { app.articles.observeCount() }.collectAsStateWithLifecycle(null)
@@ -142,12 +174,17 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
     val problems = feeds?.withProblems() ?: 0
     val allFeeds = feeds
 
+    // Scrolling the results puts the keyboard away, and the toolbar it hid returns (SPEC §11)
+    LaunchedEffect(listState.isScrollInProgress) { if (listState.isScrollInProgress && model.searching) keyboard?.hide() }
+
     Column(Modifier.fillMaxSize()) {
-        TopAppBar(
+        Crossfade(model.searching, label = "top bar") { searching ->
+        if (searching) SearchField(model) else TopAppBar(
             title = { Text(stringResource(R.string.title_articles), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.semantics { heading() }) },
             subtitle = { subtitle?.let { Text(it, maxLines = 1, overflow = TextOverflow.Ellipsis) } },
             actions = {
                 if (!allFeeds.isNullOrEmpty()) {
+                    TooltipIconButton(R.drawable.ic_search, stringResource(R.string.content_description_search), { model.openSearch() })
                     if (progress != null) {
                         // In place of the Refresh button while a refresh runs; it does not respond (SPEC §4.8)
                         val refreshing = stringResource(R.string.msg_refreshing_one)
@@ -160,6 +197,7 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
             },
             scrollBehavior = topBar,
         )
+        }
         val current = list
         val rows = current?.rows
         when {
@@ -170,10 +208,21 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
                 when {
                     rows == null -> Unit
                     rows.isEmpty() && stored == 0 && progress != null -> Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { ContainedLoadingIndicator() }
+                    rows.isEmpty() && current.query != null -> NothingFound(
+                        model.query.text.toString().trim(),
+                        // A filter is narrowing: the way out is one tap (SPEC §11)
+                        onEverything = if (source != Source.All || unreadOnly == true || savedOnly == true) model::searchEverything else null,
+                    )
                     rows.isEmpty() -> EmptyState(
                         // The app's mark is drawn on the launcher icon's canvas, hence the larger size
                         R.drawable.ic_launcher_monochrome,
-                        stringResource(if (unreadOnly == true && stored != 0) R.string.msg_empty_all_read else R.string.msg_empty_no_articles),
+                        stringResource(
+                            when {
+                                savedOnly == true -> R.string.msg_empty_no_saved
+                                unreadOnly == true && stored != 0 -> R.string.msg_empty_all_read
+                                else -> R.string.msg_empty_no_articles
+                            },
+                        ),
                         iconSize = 108.dp,
                     )
                     else -> PullToRefreshBox(
@@ -185,6 +234,9 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
                         ArticleRows(
                             rows, appLook, appLines, listState, { atTop },
                             Modifier.fillMaxSize().nestedScroll(topBar.nestedScrollConnection),
+                            query = current.query, passageOf = model::passage,
+                            onToggleRead = { row -> model.setRead(listOf(row.article.id), !row.article.read) },
+                            onToggleSaved = { row -> model.setSaved(row.article.id, !row.article.saved) },
                             returnTo = returnTo, onReturned = { returnTo = null },
                             onPassed = if (markOnScroll) { ids -> model.setRead(ids, true) } else null,
                         ) { row ->
@@ -223,7 +275,8 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
                     else -> null
                 } ?: stringResource(R.string.label_source_all)
                 val sourceDescription = stringResource(R.string.content_description_source, sourceName)
-                HorizontalFloatingToolbar(
+                // While the keyboard is up for the search the toolbar is away; it returns with the keyboard gone (SPEC §11)
+                if (!(model.searching && WindowInsets.isImeVisible)) HorizontalFloatingToolbar(
                     expanded = true,
                     // The toolbar's standard container is the rows' own role, and the list scrolls under it now that it stays: it takes the highest surface container, and M3's level 2 shadow (3 dp) as the pill does – the shadow alone does not show on a dark theme
                     colors = FloatingToolbarDefaults.standardFloatingToolbarColors(toolbarContainerColor = MaterialTheme.colorScheme.surfaceContainerHighest),
@@ -243,6 +296,12 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
                     Tooltip(unreadLabel) {
                         FilledIconToggleButton(checked = unreadOnly == true, onCheckedChange = { model.setUnreadOnly(it) }, shapes = IconButtonDefaults.toggleableShapes()) {
                             Icon(painterResource(if (unreadOnly == true) R.drawable.ic_circle_filled else R.drawable.ic_circle), contentDescription = unreadLabel)
+                        }
+                    }
+                    val savedLabel = stringResource(R.string.tooltip_saved_only)
+                    Tooltip(savedLabel) {
+                        FilledIconToggleButton(checked = savedOnly == true, onCheckedChange = { model.setSavedOnly(it) }, shapes = IconButtonDefaults.toggleableShapes()) {
+                            Icon(painterResource(if (savedOnly == true) R.drawable.ic_star_filled else R.drawable.ic_star), contentDescription = savedLabel)
                         }
                     }
                     val markAll = stringResource(R.string.content_description_mark_all_read)
@@ -295,16 +354,25 @@ private fun Tooltip(label: String, content: @Composable () -> Unit) {
     )
 }
 
-/** The rows under day headers (SPEC §4.2, §4.4): the rows of one day form a segmented group, 2 dp apart, outer corners 20, inner 6. */
+/**
+ * The rows under day headers (SPEC §4.2, §4.4): the rows of one day form a segmented group, 2 dp
+ * apart, outer corners 20, inner 6. With a [query] they are search results (§11): one group under
+ * "Found: 3", each with its date and the passage holding the match in the preview's place. A row
+ * swiped toward the end changes between read and unread, toward the start between saved and not
+ * (§4.7); it never leaves with the swipe.
+ */
 @Composable
 private fun ArticleRows(
     rows: List<ArticleRow>, appLook: Look, appLines: Int, state: androidx.compose.foundation.lazy.LazyListState, atTop: () -> Boolean, modifier: Modifier,
+    query: String?, passageOf: suspend (Long, String) -> Passage?, onToggleRead: (ArticleRow) -> Unit, onToggleSaved: (ArticleRow) -> Unit,
     returnTo: Long?, onReturned: () -> Unit, onPassed: ((List<Long>) -> Unit)?, onOpen: (ArticleRow) -> Unit,
 ) {
     val context = LocalContext.current
     val zone = remember { ZoneId.systemDefault() }
     val today = remember(rows) { LocalDate.now(zone) }
-    val days = remember(rows) { rows.map { dayOf(it.article.published, zone) } }
+    val locale = LocalConfiguration.current.locales[0]
+    // Results have no day headers: every row is of the one "day"
+    val days = remember(rows, query == null) { rows.map { if (query == null) dayOf(it.article.published, zone) else LocalDate.MIN } }
     // Rows that join above while the list rests at its top must show: without this the list stays anchored on the row that was first
     val firstId = rows.firstOrNull()?.article?.id
     var shownFirst by remember { mutableStateOf(firstId) }
@@ -347,7 +415,7 @@ private fun ArticleRows(
             if (first) {
                 item(key = "day ${days[index]}", contentType = "day") {
                     Text(
-                        dayHeader(days[index], today),
+                        if (query == null) dayHeader(days[index], today) else stringResource(R.string.msg_found, rows.size),
                         style = MaterialTheme.typography.titleSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(start = 16.dp, top = 16.dp, bottom = 8.dp).semantics { heading() },
@@ -357,11 +425,24 @@ private fun ArticleRows(
             item(key = row.article.id, contentType = "article") {
                 val top = if (first) 20.dp else 6.dp
                 val bottom = if (last) 20.dp else 6.dp
-                ArticleRowItem(
-                    row, row.look(appLook), row.previewLines(appLines), timeOfDay(context, row.article.published),
-                    RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom),
-                    Modifier.padding(bottom = if (last) 0.dp else 2.dp),
-                ) { onOpen(row) }
+                val shape = RoundedCornerShape(topStart = top, topEnd = top, bottomStart = bottom, bottomEnd = bottom)
+                SwipeRow(row, shape, Modifier.padding(bottom = if (last) 0.dp else 2.dp), onToggleRead, onToggleSaved) {
+                    if (query == null) {
+                        ArticleRowItem(row, row.look(appLook), row.previewLines(appLines), timeOfDay(context, row.article.published), shape) { onOpen(row) }
+                    } else {
+                        // The match is marked by weight and tone; a match in the title alone leaves the usual preview
+                        val strong = SpanStyle(fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onSurface)
+                        val passage by produceState<AnnotatedString?>(null, row.article.id, query) {
+                            value = passageOf(row.article.id, query)?.let { found ->
+                                buildAnnotatedString {
+                                    append(found.text)
+                                    addStyle(strong, found.start, found.end)
+                                }
+                            }
+                        }
+                        ArticleRowItem(row, row.look(appLook), RESULT_LINES, shortDate(locale, row.article.published, zone), shape, passage = passage) { onOpen(row) }
+                    }
+                }
             }
         }
     }
@@ -382,4 +463,98 @@ private fun SettingsButton(problems: Int, onClick: () -> Unit) {
             }
         }
     }
+}
+
+/** A result shows two lines of text under its title, whatever the list's own setting (SPEC §11). */
+private const val RESULT_LINES = 2
+
+/**
+ * A row with its two swipes (SPEC §4.7). Past the threshold the action is done and the row comes
+ * back: nothing is dismissed. What the swipe will do shows behind the row, at the side it opens.
+ */
+@Composable
+private fun SwipeRow(row: ArticleRow, shape: Shape, modifier: Modifier, onToggleRead: (ArticleRow) -> Unit, onToggleSaved: (ArticleRow) -> Unit, content: @Composable () -> Unit) {
+    val scope = rememberCoroutineScope()
+    val state = rememberSwipeToDismissBoxState()
+    val current by rememberUpdatedState(row)
+    val readLabel = stringResource(if (row.article.read) R.string.desc_swipe_unread else R.string.desc_swipe_read)
+    val saveLabel = stringResource(if (row.article.saved) R.string.button_unsave else R.string.button_save)
+    SwipeToDismissBox(
+        state = state,
+        modifier = modifier.semantics {
+            customActions = listOf(
+                CustomAccessibilityAction(readLabel) { onToggleRead(current); true },
+                CustomAccessibilityAction(saveLabel) { onToggleSaved(current); true },
+            )
+        },
+        backgroundContent = {
+            val toEnd = state.dismissDirection == SwipeToDismissBoxValue.StartToEnd
+            val icon = when {
+                toEnd -> if (row.article.read) R.drawable.ic_mark_email_unread else R.drawable.ic_mark_email_read
+                // Filled when the swipe will save
+                else -> if (row.article.saved) R.drawable.ic_star else R.drawable.ic_star_filled
+            }
+            Box(
+                Modifier.fillMaxSize().background(MaterialTheme.colorScheme.secondaryContainer, shape).padding(horizontal = 24.dp),
+                contentAlignment = if (toEnd) Alignment.CenterStart else Alignment.CenterEnd,
+            ) {
+                if (state.dismissDirection != SwipeToDismissBoxValue.Settled) {
+                    Icon(painterResource(icon), contentDescription = null, tint = MaterialTheme.colorScheme.onSecondaryContainer)
+                }
+            }
+        },
+        onDismiss = { value ->
+            when (value) {
+                SwipeToDismissBoxValue.StartToEnd -> onToggleRead(current)
+                SwipeToDismissBoxValue.EndToStart -> onToggleSaved(current)
+                SwipeToDismissBoxValue.Settled -> Unit
+            }
+            scope.launch { state.reset() }
+        },
+    ) { content() }
+}
+
+/**
+ * The top bar as the search field (SPEC §11), the input of M3's search bar on its container as in
+ * Music: Back closes the search, the cross empties the field.
+ */
+@Composable
+private fun SearchField(model: ArticlesViewModel) {
+    val keyboard = LocalSoftwareKeyboardController.current
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(Unit) {
+        if (model.focusSearch) {
+            model.focusSearch = false
+            focus.requestFocus()
+            keyboard?.show()
+        }
+    }
+    val container = SearchBarDefaults.colors().containerColor
+    SearchBarDefaults.InputField(
+        textFieldState = model.query,
+        searchBarState = rememberSearchBarState(),
+        onSearch = { keyboard?.hide() },
+        placeholder = { Text(stringResource(R.string.hint_search), maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        leadingIcon = { TooltipIconButton(R.drawable.ic_arrow_back, stringResource(R.string.content_description_close_search), { model.closeSearch() }) },
+        trailingIcon = if (model.query.text.isNotEmpty()) {
+            { TooltipIconButton(R.drawable.ic_close, stringResource(R.string.content_description_clear_search), { model.query.clearText() }) }
+        } else null,
+        colors = SearchBarDefaults.inputFieldColors(focusedContainerColor = container, unfocusedContainerColor = container, disabledContainerColor = container),
+        modifier = Modifier.fillMaxWidth().statusBarsPadding().padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 4.dp).focusRequester(focus),
+    )
+}
+
+/** "Nothing found for compose.", with the way to search everything when a filter is narrowing the results (SPEC §11). */
+@Composable
+private fun NothingFound(typed: String, onEverything: (() -> Unit)?) {
+    val sentence = stringResource(R.string.msg_search_no_results)
+    val text = buildAnnotatedString {
+        append(sentence.substringBefore("%s"))
+        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) { append(typed) }
+        append(sentence.substringAfter("%s", ""))
+    }
+    EmptyState(
+        R.drawable.ic_search, text, Modifier.imePadding(),
+        action = onEverything?.let { { FilledTonalButton(onClick = it) { Text(stringResource(R.string.button_search_everything)) } } },
+    )
 }

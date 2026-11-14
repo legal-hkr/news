@@ -1,5 +1,6 @@
 package sh.hnet.news.ui.articles
 
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -63,10 +64,11 @@ private const val UNREAD_DOT = "dot"
  * only by the image, and a row whose image is not on the phone is drawn as Text.
  *
  * @param time The time as this list shows it (the time of day under a day header)
+ * @param passage In search results: the text around the match, shown in the preview's place (SPEC §11)
  * @param onClick Null for a row that is only shown (the sample in settings)
  */
 @Composable
-fun ArticleRowItem(row: ArticleRow, look: Look, previewLines: Int, time: String, shape: Shape, modifier: Modifier = Modifier, onClick: (() -> Unit)? = null) {
+fun ArticleRowItem(row: ArticleRow, look: Look, previewLines: Int, time: String, shape: Shape, modifier: Modifier = Modifier, passage: AnnotatedString? = null, onClick: (() -> Unit)? = null) {
     val article = row.article
     val app = LocalContext.current.applicationContext as NewsApplication
     // Whether the image is on the phone decides the layout, so it is asked at once (a file check); the picture itself is read off the main thread
@@ -83,7 +85,9 @@ fun ArticleRowItem(row: ArticleRow, look: Look, previewLines: Int, time: String,
                 Row(Modifier.heightIn(min = if (stored && look == Look.THUMBNAIL) THUMBNAIL else 0.dp), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         Title(article.title, article.read)
-                        if (previewLines > 0 && !article.preview.isNullOrBlank()) {
+                        if (passage != null) {
+                            Text(passage, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = previewLines, overflow = TextOverflow.Ellipsis)
+                        } else if (previewLines > 0 && !article.preview.isNullOrBlank()) {
                             Text(article.preview, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = previewLines, overflow = TextOverflow.Ellipsis)
                         }
                     }
@@ -124,7 +128,7 @@ private fun Title(title: String, read: Boolean) {
     )
 }
 
-/** The feed's icon and name at the start; the completeness mark (§4.3) and the time at the end. */
+/** The feed's icon and name at the start; the completeness mark (§4.3), the saved mark and the time at the end. */
 @Composable
 private fun Meta(row: ArticleRow, time: String) {
     val color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -141,6 +145,9 @@ private fun Meta(row: ArticleRow, time: String) {
             Icon(painterResource(mark.first), contentDescription = null, tint = color, modifier = Modifier.size(16.dp))
             Text(stringResource(mark.second), style = style, color = color, maxLines = 1)
             Spacer(Modifier.width(2.dp))
+        }
+        if (row.article.saved) {
+            Icon(painterResource(R.drawable.ic_star_filled), contentDescription = stringResource(R.string.content_description_saved), tint = color, modifier = Modifier.size(16.dp))
         }
         Text(time, style = style, color = color, maxLines = 1)
     }

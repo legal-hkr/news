@@ -1,5 +1,6 @@
 package sh.hnet.news.refresh
 
+import sh.hnet.news.data.SearchIndex
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -57,6 +58,7 @@ class Refresher(
     private val http: HttpFetcher,
     private val images: ImageStore,
     private val preferences: Preferences,
+    private val search: SearchIndex,
     private val scope: CoroutineScope,
 ) {
     private val _progress = MutableStateFlow<RefreshProgress?>(null)
@@ -175,6 +177,7 @@ class Refresher(
             val id = articleDao.insert(article)
             if (id < 0) return@mapNotNull null
             articleDao.upsert(ArticleContent(id, Blocks.encode(feedBlocks), null))
+            search.index(id)
             Pending(id, item, feedBlocks, more)
         }
         feedDao.setRefreshed(feed.id, now, pending.size, response.etag, response.lastModified)
@@ -249,6 +252,7 @@ class Refresher(
             }
         }
         articleDao.upsert(ArticleContent(id, feed = Blocks.encode(if (page == null) shown else feedBlocks), page = if (page == null) null else Blocks.encode(shown)))
+        search.index(id)
         return Rest(state, lead, shown, page != null)
     }
 

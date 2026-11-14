@@ -257,4 +257,17 @@
         <item quantity="one">Not refreshed for %d day</item>
         <item quantity="other">Not refreshed for %d days</item>
     </plurals>
+    <string name="content_description_search">Search</string>
+    <string name="tooltip_saved_only">Saved only</string>
+    <string name="content_description_saved">Saved</string>
+    <string name="desc_swipe_read">Mark as read</string>
+    <string name="desc_swipe_unread">Mark as unread</string>
+    <string name="button_unsave">Remove from saved</string>
+    <string name="msg_empty_no_saved">No saved articles.</string>
+    <string name="hint_search">Search articles</string>
+    <string name="content_description_close_search">Close search</string>
+    <string name="content_description_clear_search">Clear</string>
+    <string name="msg_found">Found: %d</string>
+    <string name="msg_search_no_results">Nothing found for %s.</string>
+    <string name="button_search_everything">Search all articles</string>
 </resources>

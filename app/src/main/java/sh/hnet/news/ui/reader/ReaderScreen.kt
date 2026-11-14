@@ -2,6 +2,13 @@
 
 package sh.hnet.news.ui.reader
 
+import androidx.compose.material3.rememberTooltipState
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.PlainTooltip
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.FilledIconToggleButton
 import sh.hnet.news.data.ArticleState
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.Button
@@ -105,6 +112,7 @@ private class PageState(val row: ArticleRow) {
     var feed by mutableStateOf<List<Block>>(emptyList())
     var page by mutableStateOf<List<Block>?>(null)
     var version by mutableIntStateOf(ArticleVersion.DEFAULT)
+    var saved by mutableStateOf(row.article.saved)
     /** The other version is being fetched. */
     var busy by mutableStateOf(false)
     /** The header has scrolled away: the top bar names the article instead of its feed. */
@@ -118,7 +126,7 @@ private class PageState(val row: ArticleRow) {
  * The reader (SPEC §5): one article per page of a pager over the list the user came from, each a
  * column of natively drawn blocks read from the phone alone. The top bar names what is read and
  * the floating toolbar acts on it; both stay in place.
- * Save joins the toolbar with stage 6.
+ * Save is the toolbar's first control.
  */
 @Composable
 fun ReaderScreen(model: ArticlesViewModel, articleId: Long, onBack: () -> Unit, onShowImages: (List<String>, Int) -> Unit, snackbars: SnackbarHostState, messageScope: CoroutineScope) {
@@ -244,6 +252,25 @@ fun ReaderScreen(model: ArticlesViewModel, articleId: Long, onBack: () -> Unit, 
             modifier = Modifier.align(Alignment.BottomCenter).navigationBarsPadding().padding(horizontal = 16.dp).offset(y = -FloatingToolbarDefaults.ScreenOffset),
         ) {
             val link = current.row.article.link
+            // No snackbar: the star is the feedback, and the same tap undoes it (SPEC §12)
+            val saveLabel = stringResource(if (current.saved) R.string.button_unsave else R.string.button_save)
+            TooltipBox(
+                positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                tooltip = { PlainTooltip { Text(saveLabel) } },
+                state = rememberTooltipState(),
+            ) {
+                FilledIconToggleButton(
+                    checked = current.saved,
+                    onCheckedChange = { on ->
+                        val state = current
+                        state.saved = on
+                        model.setSaved(state.row.article.id, on)
+                    },
+                    shapes = IconButtonDefaults.toggleableShapes(),
+                ) {
+                    Icon(painterResource(if (current.saved) R.drawable.ic_star_filled else R.drawable.ic_star), contentDescription = saveLabel)
+                }
+            }
             TooltipIconButton(R.drawable.ic_share, stringResource(R.string.button_share), { link?.let { shareText(context, current.row.article.title, it) } }, enabled = link != null)
             TooltipIconButton(R.drawable.ic_open_in_browser, stringResource(R.string.button_open_in_browser), { link?.let(open) }, enabled = link != null)
             TooltipIconButton(R.drawable.ic_format_size, stringResource(R.string.title_text), { textSheet = true })
@@ -305,7 +332,11 @@ private suspend fun load(app: NewsApplication, state: PageState) {
     }
     state.feed = feed
     state.page = page
-    if (state.article == null) state.version = article.version
+    if (state.article == null) {
+        state.version = article.version
+        // The row is as old as the list the reader was opened from
+        state.saved = article.saved
+    }
     state.article = article
 }
 

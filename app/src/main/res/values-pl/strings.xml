@@ -256,4 +256,17 @@
         <item quantity="many">Nie odświeżono od %d dni</item>
         <item quantity="other">Nie odświeżono od %d dnia</item>
     </plurals>
+    <string name="content_description_search">Szukaj</string>
+    <string name="tooltip_saved_only">Tylko zapisane</string>
+    <string name="content_description_saved">Zapisany</string>
+    <string name="desc_swipe_read">Oznacz jako przeczytany</string>
+    <string name="desc_swipe_unread">Oznacz jako nieprzeczytany</string>
+    <string name="button_unsave">Usuń z zapisanych</string>
+    <string name="msg_empty_no_saved">Brak zapisanych artykułów.</string>
+    <string name="hint_search">Szukaj w artykułach</string>
+    <string name="content_description_close_search">Zamknij wyszukiwanie</string>
+    <string name="content_description_clear_search">Wyczyść</string>
+    <string name="msg_found">Znaleziono: %d</string>
+    <string name="msg_search_no_results">Brak wyników dla „%s”.</string>
+    <string name="button_search_everything">Szukaj we wszystkich artykułach</string>
 </resources>

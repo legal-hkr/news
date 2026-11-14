@@ -50,6 +50,10 @@ interface FeedDao {
     @Query("SELECT id FROM feed WHERE removedAt IS NOT NULL")
     suspend fun removedIds(): List<Long>
 
+    /** A removed feed kept for its saved articles gives its address up; ids are unique, so is this. */
+    @Query("UPDATE feed SET url = 'removed:' || id, folderId = NULL WHERE id = :id AND url NOT LIKE 'removed:%'")
+    suspend fun entomb(id: Long)
+
     @Query("DELETE FROM feed WHERE id = :id")
     suspend fun delete(id: Long)
 

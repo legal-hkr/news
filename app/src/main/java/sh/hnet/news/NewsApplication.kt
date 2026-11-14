@@ -1,5 +1,6 @@
 package sh.hnet.news
 
+import sh.hnet.news.data.SearchIndex
 import sh.hnet.news.refresh.RefreshRequests
 import android.app.Application
 import kotlinx.coroutines.CoroutineScope
@@ -44,7 +45,9 @@ class NewsApplication : Application() {
         }
     }
 
-    val refresher: Refresher by lazy { Refresher(database.feedDao(), articles, http, images, preferences, appScope) }
+    val search: SearchIndex by lazy { SearchIndex(articles) }
+
+    val refresher: Refresher by lazy { Refresher(database.feedDao(), articles, http, images, preferences, search, appScope) }
 
     val refreshRequests: RefreshRequests by lazy { RefreshRequests(this, preferences, refresher, appScope) }
 
@@ -55,6 +58,7 @@ class NewsApplication : Application() {
             feeds.purgeRemoved()
             // Articles a refresh was still fetching when the process went
             articles.endFetching()
+            search.indexMissing()
             RefreshJobService.schedule(this@NewsApplication, preferences.refreshSettings())
         }
     }
@@ -62,13 +66,15 @@ class NewsApplication : Application() {
     /** The first fetch of feeds just subscribed or imported, after the refresh under way if there is one. */
     private fun fetchFirst(feedIds: List<Long>) = refreshRequests.request(feedIds, afterCurrent = true)
 
-    /** A feed's articles with their images, when the feed goes for good. */
-    private suspend fun deleteArticles(feedId: Long) {
+    /** A feed's articles with their images, when the feed goes for good; its saved articles stay whole (SPEC §13.2). True when there are such. */
+    private suspend fun deleteArticles(feedId: Long): Boolean {
         val urls = articles.leadImages(feedId) + articles.contents(feedId).flatMap { content ->
             Blocks.images(Blocks.decode(content.feed) + Blocks.decode(content.page)).map { it.url }
         }
         withContext(Dispatchers.IO) { images.delete(urls.toSet()) }
         articles.deleteContents(feedId)
         articles.deleteArticles(feedId)
+        articles.forgetGone()
+        return articles.count(feedId) > 0
     }
 }

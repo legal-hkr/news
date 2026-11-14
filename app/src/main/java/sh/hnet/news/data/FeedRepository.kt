@@ -20,7 +20,7 @@ class DeletedFolder(val folder: Folder, val feedIds: List<Long>)
 /** The subscriptions and their folders: everything Settings › Feeds, Add a feed and a feed's page change. */
 class FeedRepository(private val dao: FeedDao, private val icons: FeedIcons, private val scope: CoroutineScope) {
     /** Removes what else belongs to a feed that goes for good (its articles); set by the application. */
-    var onPurge: suspend (Long) -> Unit = {}
+    var onPurge: suspend (Long) -> Boolean = { false }
 
     /** Fetches the feeds just subscribed for the first time (SPEC §7.2, §9); set by the application. */
     var onAdded: (List<Long>) -> Unit = {}
@@ -87,9 +87,13 @@ class FeedRepository(private val dao: FeedDao, private val icons: FeedIcons, pri
     suspend fun purge(id: Long) {
         // Taken back meanwhile?
         if (dao.feed(id)?.removedAt == null) return
-        onPurge(id)
-        dao.delete(id)
-        withContext(Dispatchers.IO) { icons.delete(id) }
+        if (onPurge(id)) {
+            // Saved articles remain: the feed stays as theirs, shown nowhere else (SPEC §13.2)
+            dao.entomb(id)
+        } else {
+            dao.delete(id)
+            withContext(Dispatchers.IO) { icons.delete(id) }
+        }
     }
 
     /** Feeds unsubscribed whose Undo never ended (the process went first); called at start. */

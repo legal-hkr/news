@@ -38,7 +38,10 @@ data class Feed(
     /** The feed's or its site's icon is stored (FeedIcons.file). */
     val hasIcon: Boolean = false,
     val addedAt: Long = 0,
-    /** Unsubscribed and waiting for the Undo to pass (SPEC §8); such a feed is shown nowhere and is deleted for good afterwards or at the next start. */
+    /**
+     * Unsubscribed and waiting for the Undo to pass (SPEC §8); such a feed is shown nowhere and is deleted for good afterwards or at the next start.
+     * One with saved articles stays as their feed (§13.2), its address replaced so that the real one is free to subscribe to again.
+     */
     val removedAt: Long? = null,
     /** False until the content source was chosen: by the user at subscribing, or by the first refresh for an imported feed (SPEC §9). */
     @ColumnInfo(defaultValue = "1") val contentChosen: Boolean = true,
@@ -116,6 +119,13 @@ data class ArticleContent(
     @PrimaryKey val articleId: Long,
     val feed: String?,
     val page: String?,
+)
+
+/** An article's title and shown text as search compares them (content/Fold); see [SearchIndex]. */
+@Entity(tableName = "article_search")
+data class ArticleSearch(
+    @PrimaryKey val articleId: Long,
+    val folded: String,
 )
 
 /** An article with what the list needs of its feed. */

@@ -12,11 +12,12 @@ interface ArticleDao {
     /**
      * The articles of a source, newest first: every feed's when both are null, one feed's, or one
      * folder's. Read and unread alike; the list filters and orders what it shows itself (SPEC §2.8).
+     * Saved articles of a feed unsubscribed from are still here (§13.2).
      */
     @Query(
         "SELECT a.*, f.title AS feedTitle, f.hasIcon AS feedHasIcon, f.folderId AS folderId, f.ownLook AS ownLook, f.look AS look, f.previewLines AS previewLines, f.language AS feedLanguage, f.fullPage AS feedFullPage " +
             "FROM article a JOIN feed f ON f.id = a.feedId " +
-            "WHERE f.removedAt IS NULL AND (:feedId IS NULL OR a.feedId = :feedId) AND (:folderId IS NULL OR f.folderId = :folderId) " +
+            "WHERE (f.removedAt IS NULL OR a.saved = 1) AND (:feedId IS NULL OR a.feedId = :feedId) AND (:folderId IS NULL OR f.folderId = :folderId) " +
             "ORDER BY a.published DESC, a.id DESC",
     )
     fun observeRows(feedId: Long?, folderId: Long?): Flow<List<ArticleRow>>
@@ -67,6 +68,25 @@ interface ArticleDao {
     @Query("UPDATE article SET version = :version WHERE id = :id")
     suspend fun setVersion(id: Long, version: Int)
 
+    @Query("UPDATE article SET saved = :saved WHERE id = :id")
+    suspend fun setSaved(id: Long, saved: Boolean)
+
+    @Upsert
+    suspend fun upsert(search: ArticleSearch)
+
+    /** By containment of the folded text; `instr` takes the text as it is, with no wildcards to escape. */
+    @Query("SELECT articleId FROM article_search WHERE instr(folded, :query) > 0")
+    suspend fun find(query: String): List<Long>
+
+    @Query("SELECT id FROM article WHERE id NOT IN (SELECT articleId FROM article_search)")
+    suspend fun unindexed(): List<Long>
+
+    @Query("DELETE FROM article_search WHERE articleId NOT IN (SELECT id FROM article)")
+    suspend fun forgetGone()
+
+    @Query("SELECT COUNT(*) FROM article WHERE feedId = :feedId")
+    suspend fun count(feedId: Long): Int
+
     @Query("UPDATE article SET read = :read WHERE id IN (:ids)")
     suspend fun setRead(ids: List<Long>, read: Boolean)
 
@@ -74,15 +94,16 @@ interface ArticleDao {
     @Query("UPDATE article SET state = 2 WHERE state = 1")
     suspend fun endFetching()
 
-    @Query("SELECT imageUrl FROM article WHERE feedId = :feedId AND imageUrl IS NOT NULL")
+    // What goes with a feed unsubscribed from: everything of it but its saved articles (SPEC §13.2)
+    @Query("SELECT imageUrl FROM article WHERE feedId = :feedId AND imageUrl IS NOT NULL AND saved = 0")
     suspend fun leadImages(feedId: Long): List<String>
 
-    @Query("SELECT c.feed AS feed, c.page AS page, c.articleId AS articleId FROM article_content c JOIN article a ON a.id = c.articleId WHERE a.feedId = :feedId")
+    @Query("SELECT c.feed AS feed, c.page AS page, c.articleId AS articleId FROM article_content c JOIN article a ON a.id = c.articleId WHERE a.feedId = :feedId AND a.saved = 0")
     suspend fun contents(feedId: Long): List<ArticleContent>
 
-    @Query("DELETE FROM article_content WHERE articleId IN (SELECT id FROM article WHERE feedId = :feedId)")
+    @Query("DELETE FROM article_content WHERE articleId IN (SELECT id FROM article WHERE feedId = :feedId AND saved = 0)")
     suspend fun deleteContents(feedId: Long)
 
-    @Query("DELETE FROM article WHERE feedId = :feedId")
+    @Query("DELETE FROM article WHERE feedId = :feedId AND saved = 0")
     suspend fun deleteArticles(feedId: Long)
 }
