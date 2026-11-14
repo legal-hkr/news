@@ -102,11 +102,7 @@ class ArticlesViewModel(private val app: NewsApplication) : ViewModel() {
         // A source that stops existing (its feed or folder is removed) falls back to All (SPEC §4.6)
         viewModelScope.launch {
             combine(app.preferences.source, app.feeds.feeds, app.feeds.folders) { source, feeds, folders ->
-                when (source) {
-                    Source.All -> true
-                    is Source.Feed -> feeds.any { it.id == source.id }
-                    is Source.Folder -> folders.any { it.id == source.id }
-                }
+                source.exists(feeds.mapTo(HashSet()) { it.id }, folders.mapTo(HashSet()) { it.id })
             }.collect { exists -> if (!exists) app.preferences.setSource(Source.All) }
         }
     }

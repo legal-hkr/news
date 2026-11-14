@@ -69,12 +69,16 @@ class WidgetSetupActivity : ComponentActivity() {
         val editing = WidgetSources.has(this, id)
         val name = AppWidgetManager.getInstance(this).getAppWidgetInfo(id)?.loadLabel(packageManager).orEmpty()
         lifecycleScope.launch {
-            if (app.feeds.feeds.first().isEmpty()) {
+            val feeds = app.feeds.feeds.first()
+            if (feeds.isEmpty()) {
                 done(Source.All)
                 return@launch
             }
+            // A source that is no longer there shows as All, as the widget does
+            val folders = app.feeds.folders.first()
+            val current = WidgetSources.get(this@WidgetSetupActivity, id).takeIf { it.exists(feeds.mapTo(HashSet()) { feed -> feed.id }, folders.mapTo(HashSet()) { folder -> folder.id }) } ?: Source.All
             setContent {
-                NewsTheme { SetupPage(name, editing, WidgetSources.get(this@WidgetSetupActivity, id), onClose = ::finish, onDone = ::done) }
+                NewsTheme { SetupPage(name, editing, current, onClose = ::finish, onDone = ::done) }
             }
         }
     }
@@ -89,7 +93,7 @@ private fun SetupPage(name: String, editing: Boolean, current: Source, onClose: 
     var chosen by rememberSaveable { mutableStateOf(current.encode()) }
     FormPage(
         title = name,
-        confirmLabel = stringResource(if (editing) R.string.button_save else R.string.label_add_widget),
+        confirmLabel = stringResource(if (editing) R.string.button_save else R.string.button_add_widget),
         onConfirm = { onDone(Source.decode(chosen)) },
         onBack = onClose,
         navigationIcon = R.drawable.ic_close,

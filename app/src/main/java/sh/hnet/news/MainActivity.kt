@@ -46,7 +46,10 @@ class MainActivity : ComponentActivity() {
     private fun share(intent: Intent?) {
         // A tap on a widget (SPEC-widgets §7.2)
         WidgetRequest.of(intent?.data)?.let {
-            (application as NewsApplication).widgetRequest.value = it
+            val app = application as NewsApplication
+            // The list is passed on the way to the article: that is not the list being seen, and the icon badge keeps its count
+            if (it is WidgetRequest.Article) app.badge.openingArticle()
+            app.widgetRequest.value = it
             return
         }
         if (intent?.action != Intent.ACTION_SEND) return

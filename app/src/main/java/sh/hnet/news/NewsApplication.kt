@@ -1,5 +1,6 @@
 package sh.hnet.news
 
+import android.os.LocaleList
 import kotlinx.coroutines.CancellationException
 import sh.hnet.news.notify.IconBadge
 import android.content.res.Configuration
@@ -59,10 +60,18 @@ class NewsApplication : Application() {
     /** What a tap on a widget asked for (SPEC-widgets §7.2), until the app's pages take it. */
     val widgetRequest = MutableStateFlow<WidgetRequest?>(null)
 
-    /** The theme or the language changed: the widgets are drawn from resources that changed with it. */
+    /** What the widgets were last drawn for: light or dark, and the language. */
+    private var drawnFor: Pair<Int, LocaleList>? = null
+
+    /** The theme or the language changed: the widgets' texts and pictures are made for the one they were drawn in. Other changes (a rotation, a keyboard) leave them alone. */
     override fun onConfigurationChanged(newConfig: Configuration) {
         super.onConfigurationChanged(newConfig)
-        Widgets.update(this)
+        val now = (newConfig.uiMode and Configuration.UI_MODE_NIGHT_MASK) to newConfig.locales
+        if (now != drawnFor) {
+            // The first change after the start is drawn too: what the widgets show may be from another language
+            drawnFor = now
+            Widgets.update(this)
+        }
     }
 
     /** An address shared to the app from a browser (SPEC §7.3), until the add page takes it. */
@@ -80,7 +89,7 @@ class NewsApplication : Application() {
     val refresher: Refresher by lazy { Refresher(database.feedDao(), articles, http, images, preferences, search, appScope).also {
             // Each on its own: one of them failing must not keep the others from running
             it.afterRun = {
-                listOf<suspend () -> Unit>({ storage.removeOld() }, { Widgets.update(this) }, { badge.update() }).forEach { step ->
+                listOf<suspend () -> Unit>({ storage.removeOld() }, { Widgets.updateAndWait(this) }, { badge.update() }).forEach { step ->
                     try {
                         step()
                     } catch (e: CancellationException) {

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The badge of the Newest article and Headlines widgets (SPEC-widgets §3.3, §3.4): the unread count of the source, not capped, or a check; it sticks out of the frame's or the first strip's corner. Included by their layouts. Sizes are in dp, text too. -->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="SpUsage,ContentDescription,HardcodedText"
+    android:id="@+id/badge"
+    android:layout_width="wrap_content"
+    android:layout_height="30dp"
+    android:background="@drawable/widget_pill"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="9dp"
+    android:paddingEnd="12dp">
+
+    <ImageView
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:src="@drawable/ic_rss_feed"
+        android:tint="@color/widget_inverse_on_surface"
+        tools:ignore="UseAppTint" />
+
+    <TextView
+        android:id="@+id/badge_count"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="4dp"
+        android:includeFontPadding="false"
+        android:maxLines="1"
+        android:text=""
+        android:textColor="@color/widget_inverse_on_surface"
+        android:textSize="15dp"
+        android:textStyle="bold" />
+
+    <ImageView
+        android:id="@+id/badge_state"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:layout_marginStart="4dp"
+        android:src="@drawable/ic_check"
+        android:tint="@color/widget_inverse_on_surface"
+        android:visibility="gone"
+        tools:ignore="UseAppTint" />
+</LinearLayout>

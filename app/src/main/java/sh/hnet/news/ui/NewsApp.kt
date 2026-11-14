@@ -265,9 +265,16 @@ fun NewsApp() {
                             welcome = false
                             when (choice) {
                                 // Add a feed, not the empty list, which would only offer the same button
-                                WelcomeChoice.START_FRESH -> open(Screen.AddFeed())
-                                WelcomeChoice.IMPORT -> welcomeOpml.import()
-                                WelcomeChoice.RESTORE -> welcomeRestore.pick()
+                                // A widget's plus may have opened it under this page already
+                                WelcomeChoice.START_FRESH -> if (stack.lastOrNull() !is Screen.AddFeed) open(Screen.AddFeed())
+                                WelcomeChoice.IMPORT -> {
+                                    stack.removeAll { it is Screen.AddFeed }
+                                    welcomeOpml.import()
+                                }
+                                WelcomeChoice.RESTORE -> {
+                                    stack.removeAll { it is Screen.AddFeed }
+                                    welcomeRestore.pick()
+                                }
                             }
                         }
                     }

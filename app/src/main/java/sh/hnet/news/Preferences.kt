@@ -24,6 +24,13 @@ sealed interface Source {
     data class Folder(val id: Long) : Source
     data class Feed(val id: Long) : Source
 
+    /** Whether the feed or folder is still there; a source that is not falls back to All wherever it is used (SPEC §4.6). */
+    fun exists(feedIds: Set<Long>, folderIds: Set<Long>): Boolean = when (this) {
+        All -> true
+        is Folder -> id in folderIds
+        is Feed -> id in feedIds
+    }
+
     fun encode(): String = when (this) {
         All -> "all"
         is Folder -> "folder:$id"

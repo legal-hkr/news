@@ -326,7 +326,7 @@
     <string name="content_description_widget_unread_many">News. Unread: more than 99</string>
     <string name="content_description_widget_all_read">News. Everything read.</string>
     <string name="msg_widget_unread_only">The widget shows unread articles only.</string>
-    <string name="label_add_widget">Add widget</string>
+    <string name="button_add_widget">Add widget</string>
     <string name="widget_newest_name">Newest article</string>
     <string name="widget_newest_description">The newest unread article, with its image.</string>
     <string name="widget_headlines_name">Headlines</string>

@@ -1,5 +1,7 @@
 package sh.hnet.news.backup
 
+import sh.hnet.news.widget.Widgets
+import sh.hnet.news.widget.WidgetSources
 import android.content.SharedPreferences
 import android.net.Uri
 import android.provider.OpenableColumns
@@ -89,6 +91,9 @@ class BackupManager(private val app: NewsApplication, private val feedDao: FeedD
     suspend fun restore(backup: BackupFile): Restored = withContext(Dispatchers.IO) {
         app.refresher.current()?.cancelAndJoin()
         val now = System.currentTimeMillis()
+        // Every feed and folder gets a new id: what points at one by id (the widgets' sources) is moved by address and by name
+        val oldFeeds = feedDao.everyFeed().associate { it.id to it.url }
+        val oldFolders = feedDao.folders().associate { it.id to it.name.trim().lowercase() }
         articles.deleteAllSearch()
         articles.deleteAllContents()
         articles.deleteAll()
@@ -147,9 +152,17 @@ class BackupManager(private val app: NewsApplication, private val feedDao: FeedD
             "feed" -> backup.settings.sourceFeed?.let(feeds::get)?.let { Source.Feed(it.id) }
             else -> null
         } ?: Source.All
+        WidgetSources.remap(
+            app,
+            oldFeeds.mapNotNull { (id, url) -> feeds[url]?.let { id to it.id } }.toMap(),
+            oldFolders.mapNotNull { (id, name) -> folders[name]?.let { id to it } }.toMap(),
+        )
         app.preferences.restoreSettings(backup.settings, source)
+        // The icon badge follows the restored switch
+        app.badge.update()
         RefreshJobService.schedule(app, app.preferences.refreshSettings())
         app.feeds.restored(feeds.values.toList())
+        Widgets.update(app)
         Restored(feeds.size, saved)
     }
 

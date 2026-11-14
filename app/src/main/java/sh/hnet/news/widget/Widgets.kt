@@ -1,5 +1,12 @@
 package sh.hnet.news.widget
 
+import kotlin.coroutines.resume
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.ConcurrentLinkedQueue
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.CancellationException
+import android.app.AlarmManager
 import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
@@ -45,7 +52,28 @@ object WidgetSources {
 
     fun forget(context: Context, ids: IntArray) = prefs(context).edit { ids.forEach { remove(key(it)) } }
 
-    private fun key(id: Int) = "source:$id"
+    /**
+     * After a restore, which gives every feed and folder a new id: each widget follows its feed or
+     * folder to the new id ([feeds] and [folders] map old to new). One the backup doesn't have keeps
+     * its old source and shows All.
+     */
+    fun remap(context: Context, feeds: Map<Long, Long>, folders: Map<Long, Long>) {
+        val prefs = prefs(context)
+        prefs.edit {
+            prefs.all.forEach { (key, value) ->
+                val moved = when (val source = Source.decode(value as? String)) {
+                    is Source.Feed -> feeds[source.id]?.let { Source.Feed(it) }
+                    is Source.Folder -> folders[source.id]?.let { Source.Folder(it) }
+                    Source.All -> null
+                }
+                if (key.startsWith(KEY) && moved != null) putString(key, moved.encode())
+            }
+        }
+    }
+
+    private const val KEY = "source:"
+
+    private fun key(id: Int) = "$KEY$id"
 }
 
 /** What a tap on a widget asks the app for (SPEC-widgets §7.2), carried as the intent's address so that each widget's intent is its own. */
@@ -85,59 +113,127 @@ sealed interface WidgetRequest {
  * plain remote views as Clock's and Music's. They show what is stored – a widget never starts a
  * refresh (§2.6) – and count and list unread articles only (§2.7). Redrawn (§3.6) when a refresh
  * ends, when the app leaves the foreground (whatever was read, added or moved there), at once for
- * Mark all as read, on a theme or language change, when a widget is resized and when the launcher
- * asks. Texts are set here, at run time: a layout's own strings would be resolved by the launcher,
+ * Mark all as read, on a theme or language change, when a widget is resized, just after midnight
+ * (the Headlines' ages) and when the launcher asks. Texts are set here, at run time: a layout's own strings would be resolved by the launcher,
  * in the system's language rather than the app's. Pictures come from the phone's store alone.
  */
 object Widgets {
-    /** Redraws every placed widget from what is stored. */
-    fun update(context: Context) {
+    /** Asked for a redraw; several requests waiting become one. */
+    private val requests = Channel<Unit>(Channel.CONFLATED)
+    private val waiting = ConcurrentLinkedQueue<() -> Unit>()
+    private val started = AtomicBoolean(false)
+
+    /**
+     * Redraws every placed widget from what is stored. The redraws run one after another, never two
+     * at once (a slower, older one could otherwise write over a newer one), and requests that come
+     * while one runs are met by a single redraw after it.
+     *
+     * @param done Called once a redraw that started after this request has finished: a broadcast receiver keeps its process until then
+     */
+    fun update(context: Context, done: (() -> Unit)? = null) {
         val app = context.applicationContext as NewsApplication
+        done?.let { waiting += it }
+        if (started.compareAndSet(false, true)) {
+            app.appScope.launch {
+                for (request in requests) {
+                    // Those asked before this redraw starts are answered by it
+                    val answered = generateSequence { waiting.poll() }.toList()
+                    try {
+                        draw(app)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (_: Exception) {
+                        // Drawn again at the next request; a widget must never take the app down
+                    }
+                    answered.forEach { it() }
+                }
+            }
+        }
+        requests.trySend(Unit)
+    }
+
+    /** As [update], returning when the redraw is done: a background refresh ends only then. */
+    suspend fun updateAndWait(context: Context) = suspendCancellableCoroutine { continuation -> update(context) { continuation.resume(Unit) } }
+
+    private suspend fun draw(app: NewsApplication) {
         val manager = AppWidgetManager.getInstance(app)
         val counts = manager.getAppWidgetIds(ComponentName(app, CountWidget::class.java))
         val newest = manager.getAppWidgetIds(ComponentName(app, NewestWidget::class.java))
         val headlines = manager.getAppWidgetIds(ComponentName(app, HeadlinesWidget::class.java))
+        scheduleDayChange(app, headlines.isNotEmpty())
         if (counts.isEmpty() && newest.isEmpty() && headlines.isEmpty()) return
-        app.appScope.launch {
-            val feeds = app.feeds.feeds.first()
-            val folders = app.feeds.folders.first().mapTo(HashSet()) { it.id }
-            val unread = app.articles.observeUnread().first().associate { it.feedId to it.count }
-            val noFeeds = feeds.isEmpty()
-            val density = app.resources.displayMetrics.density
-            suspend fun rows(source: Source, limit: Int) = app.articles.unreadRows((source as? Source.Feed)?.id, (source as? Source.Folder)?.id, limit)
+        val feeds = app.feeds.feeds.first()
+        val feedIds = feeds.mapTo(HashSet()) { it.id }
+        val folders = app.feeds.folders.first().mapTo(HashSet()) { it.id }
+        val unread = app.articles.observeUnread().first().associate { it.feedId to it.count }
+        val noFeeds = feeds.isEmpty()
+        val density = app.resources.displayMetrics.density
+        suspend fun rows(source: Source, limit: Int) = app.articles.unreadRows((source as? Source.Feed)?.id, (source as? Source.Folder)?.id, limit)
+        // A source that is not there falls back to All (SPEC-ui §4.6) for as long as it is not there: the widget keeps
+        // its own, so a feed that returns (Undo after Unsubscribe) has its widget back
+        fun source(id: Int) = WidgetSources.get(app, id).takeIf { it.exists(feedIds, folders) } ?: Source.All
 
-            val drawn = HashMap<Int, RemoteViews>()
-            counts.forEach { id ->
-                val source = existing(app, id, feeds, folders)
-                drawn[id] = count(app, source, noFeeds, unreadOf(source, feeds, unread))
+        val drawn = HashMap<Int, RemoteViews>()
+        counts.forEach { id ->
+            val source = source(id)
+            drawn[id] = count(app, source, noFeeds, unreadOf(source, feeds, unread))
+        }
+        newest.forEach { id ->
+            val source = source(id)
+            val row = if (noFeeds) null else rows(source, 1).firstOrNull()
+            // As wide as the widget is on this screen; the image view crops it to its box
+            val width = (manager.getAppWidgetOptions(id).width() * density).toInt().coerceIn(MIN_PICTURE_PX, MAX_PICTURE_PX)
+            val picture = row?.article?.imageUrl?.let { app.images.load(it, width) }?.within(width)
+            drawn[id] = newest(app, source, noFeeds, unreadOf(source, feeds, unread), row, picture)
+        }
+        headlines.forEach { id ->
+            val source = source(id)
+            val list = if (noFeeds) emptyList() else rows(source, MAX_HEADLINES)
+            val thumbnailWidth = (THUMBNAIL_DP * density).toInt()
+            val thumbnails = list.associate { row -> row.article.id to row.article.imageUrl?.let { app.images.load(it, thumbnailWidth) }?.within(thumbnailWidth) }
+            // Narrower than three cells' worth there is no room for the age (§6)
+            val options = manager.getAppWidgetOptions(id)
+            val showAge = options.width() >= AGE_FROM_DP
+            drawn[id] = headlines(app, source, noFeeds, unreadOf(source, feeds, unread), list, thumbnails, showAge, stripHeight(options.height()))
+        }
+        withContext(Dispatchers.Main) {
+            drawn.forEach { (id, views) ->
+                try {
+                    manager.updateAppWidget(id, views)
+                } catch (_: RuntimeException) {
+                    // The system refused this widget's views (too much bitmap memory): it keeps what it shows
+                }
             }
-            newest.forEach { id ->
-                val source = existing(app, id, feeds, folders)
-                val row = if (noFeeds) null else rows(source, 1).firstOrNull()
-                // As wide as the widget can get on this screen; the image view crops it to its box
-                val width = (manager.getAppWidgetOptions(id).width() * density).toInt().coerceIn(MIN_PICTURE_PX, MAX_PICTURE_PX)
-                val picture = row?.article?.imageUrl?.let { app.images.load(it, width) }?.atMost(width)
-                drawn[id] = newest(app, source, noFeeds, unreadOf(source, feeds, unread), row, picture)
-            }
-            headlines.forEach { id ->
-                val source = existing(app, id, feeds, folders)
-                val list = if (noFeeds) emptyList() else rows(source, MAX_HEADLINES)
-                val thumbnailWidth = (THUMBNAIL_DP * density).toInt()
-                val thumbnails = list.associate { row -> row.article.id to row.article.imageUrl?.let { app.images.load(it, thumbnailWidth) }?.atMost(thumbnailWidth) }
-                // Narrower than three cells' worth there is no room for the age (§6)
-                val options = manager.getAppWidgetOptions(id)
-                val showAge = options.width() >= AGE_FROM_DP
-                drawn[id] = headlines(app, source, noFeeds, unreadOf(source, feeds, unread), list, thumbnails, showAge, stripHeight(options.height()))
-            }
-            withContext(Dispatchers.Main) { drawn.forEach { (id, views) -> manager.updateAppWidget(id, views) } }
         }
     }
 
     /**
-     * The picture no wider than [width]: the store decodes to about the asked width, up to twice
-     * it, and all the bitmaps of one widget update together have a limit set by the system (§3.5).
+     * The picture for a box no wider than [width]: scaled down to that width and, when it is still
+     * taller than wide, cut to a square from its middle. The store decodes to about the asked
+     * width, up to twice it, and a very tall picture (a long infographic) would otherwise go over
+     * the limit the system sets for all the bitmaps of one widget update (§3.5). The boxes are
+     * oblong, so nothing that would be shown is lost.
      */
-    private fun Bitmap.atMost(width: Int): Bitmap = if (this.width <= width) this else scale(width, (height.toLong() * width / this.width).toInt().coerceAtLeast(1))
+    private fun Bitmap.within(width: Int): Bitmap {
+        val scaled = if (this.width <= width) this else scale(width, (height.toLong() * width / this.width).toInt().coerceAtLeast(1))
+        return if (scaled.height <= scaled.width) scaled else Bitmap.createBitmap(scaled, 0, (scaled.height - scaled.width) / 2, scaled.width, scaled.width)
+    }
+
+    /**
+     * The ages in the Headlines widget are words of the day they were drawn on ("14:20",
+     * "yesterday"): one redraw just after midnight keeps them true. An inexact alarm, which needs no
+     * permission; none while no such widget is placed.
+     */
+    private fun scheduleDayChange(context: Context, wanted: Boolean) {
+        val alarms = context.getSystemService(AlarmManager::class.java)
+        val intent = PendingIntent.getBroadcast(context, REQUEST_DAY, Intent(context, HeadlinesWidget::class.java).setAction(ACTION_DAY_CHANGE), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+        if (!wanted) {
+            alarms.cancel(intent)
+            return
+        }
+        val zone = ZoneId.systemDefault()
+        alarms.set(AlarmManager.RTC, LocalDate.now(zone).plusDays(1).atStartOfDay(zone).toInstant().toEpochMilli() + 60_000, intent)
+    }
 
     /** The widget's width in dp as the launcher reports it (in portrait), or what a four-cell widget has when it doesn't. */
     private fun Bundle.width(): Int = getInt(AppWidgetManager.OPTION_APPWIDGET_MIN_WIDTH).takeIf { it > 0 } ?: 328
@@ -155,18 +251,6 @@ object Widgets {
         val room = (widgetHeight - LIST_TOP_DP).coerceAtLeast(STRIP_DP)
         val strips = ((room + STRIP_GAP_DP) / (STRIP_DP + STRIP_GAP_DP)).coerceAtLeast(1)
         return (room - (strips - 1) * STRIP_GAP_DP).toFloat() / strips
-    }
-
-    /** A widget's source; one that stops existing falls back to All, as the list's does (SPEC-ui §4.6). */
-    private fun existing(context: Context, id: Int, feeds: List<Feed>, folders: Set<Long>): Source {
-        val source = WidgetSources.get(context, id)
-        val exists = when (source) {
-            Source.All -> true
-            is Source.Feed -> feeds.any { it.id == source.id }
-            is Source.Folder -> source.id in folders
-        }
-        if (!exists) WidgetSources.set(context, id, Source.All)
-        return if (exists) source else Source.All
     }
 
     private fun unreadOf(source: Source, feeds: List<Feed>, unread: Map<Long, Int>): Int = when (source) {
@@ -292,6 +376,8 @@ object Widgets {
     /** As many articles as the Headlines widget carries (§6). */
     private const val MAX_HEADLINES = 20
     private const val REQUEST_ROWS = 1
+    private const val REQUEST_DAY = 2
+    const val ACTION_DAY_CHANGE = "sh.hnet.news.widget.DAY_CHANGE"
     /** A thumbnail's box is 64 × 44 dp; decoded a little larger than its width. */
     private const val THUMBNAIL_DP = 80
     private const val AGE_FROM_DP = 300
@@ -303,14 +389,27 @@ object Widgets {
     private const val MAX_PICTURE_PX = 900
 }
 
-/** A widget's provider: it is redrawn with all the others, and forgets its source when it is removed. */
+/**
+ * A widget's provider: it is redrawn with all the others, and forgets its source when it is
+ * removed. The redraw runs off the receiver's thread, so the receiver asks the system to keep the
+ * process until it is done – after a restart of the phone the process is started for this alone.
+ */
 abstract class NewsWidget : AppWidgetProvider() {
-    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) = Widgets.update(context)
+    override fun onReceive(context: Context, intent: Intent) {
+        if (intent.action == Widgets.ACTION_DAY_CHANGE) redraw(context) else super.onReceive(context, intent)
+    }
 
-    /** Resized: the Headlines widget hides the age when narrow, the Newest article's picture follows the width. */
-    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) = Widgets.update(context)
+    override fun onUpdate(context: Context, manager: AppWidgetManager, ids: IntArray) = redraw(context)
+
+    /** Resized: the Headlines widget fits its strips and hides the age when narrow, the Newest article's picture follows the width. */
+    override fun onAppWidgetOptionsChanged(context: Context, manager: AppWidgetManager, id: Int, options: Bundle) = redraw(context)
 
     override fun onDeleted(context: Context, ids: IntArray) = WidgetSources.forget(context, ids)
+
+    private fun redraw(context: Context) {
+        val pending = goAsync()
+        Widgets.update(context) { pending.finish() }
+    }
 }
 
 /** Count, 1×1 (SPEC-widgets §4). */

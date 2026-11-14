@@ -50,19 +50,52 @@ class IconBadge(private val app: NewsApplication, private val preferences: Prefe
         get() = stamps.getLong(AFTER, Long.MAX_VALUE)
         set(value) = stamps.edit { putLong(AFTER, value) }
 
+    /** Until when the next showing of the list does not count: it is only passed on the way to an article opened from a widget. */
+    @Volatile private var passingUntil = 0L
+
+    /** An article is being opened from a widget: the list comes up for a moment under the reader, which is not the user seeing it. */
+    fun openingArticle() {
+        passingUntil = System.currentTimeMillis() + PASSING_MS
+    }
+
     /** The list came on screen or left it: either way everything so far has been seen. */
     fun listShown(visible: Boolean) {
-        listVisible = visible
-        startOver()
+        if (visible) {
+            if (System.currentTimeMillis() < passingUntil) {
+                passingUntil = 0
+                return
+            }
+            listVisible = true
+            startOver()
+        } else if (listVisible) {
+            // Only a list that was seen: one passed on the way to an article changes nothing
+            listVisible = false
+            startOver()
+        }
     }
 
-    /** Swiped away, or the switch was just turned on: the count starts again from here, and nothing shows until new articles come. */
-    fun startOver() {
-        manager.cancel(ID)
-        app.appScope.launch { order.withLock { after = articles.newestId() } }
+    /**
+     * Swiped away, the list seen, or the switch just turned on: the notification goes and the count
+     * starts again from here, so nothing shows until new articles come. In turn with [update], so a
+     * notification being posted at that moment is not left behind.
+     */
+    fun startOver(done: (() -> Unit)? = null) {
+        app.appScope.launch {
+            try {
+                order.withLock {
+                    // With the badge off there is nothing to keep count of
+                    if (preferences.iconBadge.first()) {
+                        manager.cancel(ID)
+                        after = articles.newestId()
+                    }
+                }
+            } finally {
+                done?.invoke()
+            }
+        }
     }
 
-    /** The switch was turned off (or Restore defaults did it): the notification goes; the permission and the channel are left as they are. */
+    /** The switch was turned off: the notification goes; the permission and the channel are left as they are. */
     fun off() = manager.cancel(ID)
 
     /**
@@ -77,7 +110,11 @@ class IconBadge(private val app: NewsApplication, private val preferences: Prefe
 
     /** Brings the notification in line with what is stored: after a refresh, and when the app leaves the foreground. */
     suspend fun update() = order.withLock {
-        if (!preferences.iconBadge.first()) return@withLock
+        // Off, however it came to be off (the switch, Restore defaults, a restored backup): no notification stays behind
+        if (!preferences.iconBadge.first()) {
+            manager.cancel(ID)
+            return@withLock
+        }
         if (listVisible) {
             after = articles.newestId()
             return@withLock
@@ -129,12 +166,15 @@ class IconBadge(private val app: NewsApplication, private val preferences: Prefe
         const val ID = 1
         const val AFTER = "badge_after_id"
         const val NAMED_FEEDS = 3
+        const val PASSING_MS = 5_000L
     }
 }
 
 /** The notification was swiped away: it stays away until new articles come (SPEC-widgets §8.5). */
 class BadgeDismissReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent) {
-        (context.applicationContext as NewsApplication).badge.startOver()
+        // The count is stored off this thread: the process is kept until it is
+        val pending = goAsync()
+        (context.applicationContext as NewsApplication).badge.startOver { pending.finish() }
     }
 }
