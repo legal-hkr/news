@@ -221,7 +221,7 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
                     rows.isEmpty() && current.query != null -> NothingFound(
                         model.query.text.toString().trim(),
                         // A filter is narrowing: the way out is one tap (SPEC §11)
-                        onEverything = if (source != Source.All || unreadOnly == true || savedOnly == true) model::searchEverything else null,
+                        onEverything = if (source != Source.All || savedOnly == true || unreadOnly == true) model::searchEverything else null,
                     )
                     rows.isEmpty() -> EmptyState(
                         // The app's mark is drawn on the launcher icon's canvas, hence the larger size
@@ -304,7 +304,8 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
                     }
                     val unreadLabel = stringResource(R.string.tooltip_unread_only)
                     Tooltip(unreadLabel) {
-                        FilledIconToggleButton(checked = unreadOnly == true, onCheckedChange = { model.setUnreadOnly(it) }, shapes = IconButtonDefaults.toggleableShapes()) {
+                        // With "Saved only" on it does not apply: shown as it is set, and as it will hold again, but not to be changed there
+                        FilledIconToggleButton(checked = unreadOnly == true, onCheckedChange = { model.setUnreadOnly(it) }, enabled = savedOnly != true, shapes = IconButtonDefaults.toggleableShapes()) {
                             Icon(painterResource(if (unreadOnly == true) R.drawable.ic_circle_filled else R.drawable.ic_circle), contentDescription = unreadLabel)
                         }
                     }

@@ -82,7 +82,10 @@ class ArticlesViewModel(private val app: NewsApplication) : ViewModel() {
         }.conflate(),
         combine(app.preferences.unreadOnly, app.preferences.savedOnly, app.preferences.oldestFirst, rebuilds, found) { unread, saved, oldest, rebuild, (query, ids) ->
             // Results come newest first whatever the order of the list (SPEC §11)
-            Filters(unread, saved, oldest && ids == null, rebuild, query, ids)
+            // Saved articles are kept for two reasons – read ones that may be of use again, unread ones to come back to – and
+            // "Saved only" shows both: "Unread only" does not apply there. It keeps its setting, which holds again the
+            // moment "Saved only" goes off (the owner's rule of 15 Nov 2026, over SPEC §3.2's "the filters combine")
+            Filters(unread && !saved, saved, oldest && ids == null, rebuild, query, ids)
         },
     ) { (source, all), filters ->
         val oldest = filters.oldest
