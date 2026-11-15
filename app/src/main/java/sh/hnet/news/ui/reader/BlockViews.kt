@@ -10,6 +10,7 @@ import android.content.Intent
 import android.net.ConnectivityManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -259,8 +260,8 @@ fun shareText(context: Context, title: String?, link: String) {
  * An image from the phone's store (SPEC §5.6), its space held from the stored size before it draws.
  * With a caption, the two share a card (the owner's choice of 15 Nov 2026; the SPEC had the caption
  * as plain text under the image).
- * It opens full screen by its button only: a thumb landing on it while scrolling opens nothing. One
- * that is not on the phone is a placeholder of the same size with "Fetch image".
+ * It opens full screen by a tap anywhere on it; the button on its corner stays, as the sign that it
+ * can. One that is not on the phone is a placeholder of the same size with "Fetch image".
  */
 @Composable
 private fun ImageView(block: Block.Image) {
@@ -288,6 +289,7 @@ private fun ImageView(block: Block.Image) {
     val natural: Dp? = block.width.takeIf { it in 1 until columnPx / 2 }?.let { with(density) { it.toDp() } }
     val noNetwork = stringResource(R.string.error_no_network)
     val notFetched = stringResource(R.string.msg_image_not_fetched)
+    val fullScreen = stringResource(R.string.content_description_image_full_screen)
     val caption = block.caption?.takeIf { it.text.isNotBlank() }
     // An image with a caption stands with it on one card, so the caption reads as the image's and not as the article's next line
     val card = if (caption != null) Modifier.background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(16.dp)).padding(4.dp) else Modifier
@@ -298,7 +300,9 @@ private fun ImageView(block: Block.Image) {
                 // Where the viewer's flight starts and lands; only an image that opens in it
                 .imageOrigin(block.url.takeIf { picture != null && natural == null }, 12.dp)
                 .clip(RoundedCornerShape(12.dp))
-                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                // The whole image opens it, as its button does (the owner's change of 15 Nov 2026: taps are told from scrolling well enough here)
+                .then(if (picture != null && natural == null) Modifier.clickable(onClickLabel = fullScreen) { reader.showImage(block.url) } else Modifier),
         ) {
             if (picture != null) {
                 Image(picture, contentDescription = block.alt, contentScale = ContentScale.Fit, modifier = Modifier.matchParentSize())
