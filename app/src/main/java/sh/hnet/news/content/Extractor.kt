@@ -38,21 +38,27 @@ object Extractor {
     private val positive = Regex("""article|body|content|entry|hentry|main|page|post|text|blog|story|lead""", RegexOption.IGNORE_CASE)
     private val protectedTags = setOf("html", "body", "article", "main")
 
-    fun extract(body: ByteArray, charset: String?, url: String): Extracted? =
-        extract(Jsoup.parse(ByteArrayInputStream(body), charset?.takeIf { supported(it) }, url))
+    /** @param title The article's title as its feed gives it: the reader shows it itself, so the page's copy of it is left out */
+    fun extract(body: ByteArray, charset: String?, url: String, title: String? = null): Extracted? =
+        extract(Jsoup.parse(ByteArrayInputStream(body), charset?.takeIf { supported(it) }, url), title)
 
-    fun extract(html: String, url: String): Extracted? = extract(Jsoup.parse(html, url))
+    fun extract(html: String, url: String, title: String? = null): Extracted? = extract(Jsoup.parse(html, url), title)
 
-    private fun extract(document: Document): Extracted? {
+    private fun extract(document: Document, known: String?): Extracted? {
         val lead = (document.selectFirst("meta[property=og:image]") ?: document.selectFirst("meta[name=twitter:image]"))?.absUrl("content")?.takeIf { it.startsWith("http", ignoreCase = true) }
         val structured = structuredBody(document)
-        val title = document.selectFirst("h1")?.text()?.trim()
+        // What the page may call the article: its first heading, the title it gives for sharing, and the feed's
+        val titles = listOfNotNull(
+            document.selectFirst("h1")?.text(),
+            document.selectFirst("meta[property=og:title]")?.attr("content"),
+            known,
+        ).map { plain(it) }.filter { it.isNotEmpty() }.toSet()
         document.select("script, style, noscript, template, nav, aside, footer, form, button, input, select, textarea, svg, dialog, [hidden], [aria-hidden=true]").remove()
         document.body().select("[style]").filter { unseen.containsMatchIn(it.attr("style")) }.forEach { it.remove() }
         document.body().allElements.filter { it.parent() != null && unlikely(it) }.forEach { it.remove() }
 
         val candidate = best(document)
-        var blocks = candidate?.let { clean(it, title); HtmlBlocks.convert(it) }.orEmpty()
+        var blocks = candidate?.let { clean(it, titles); HtmlBlocks.convert(it) }.orEmpty()
         if (Blocks.text(blocks).length < MIN_TEXT) {
             // Structured data: plain text, one paragraph a line
             blocks = structured?.split(Regex("""\n+"""))?.map { it.trim() }?.filter { it.isNotEmpty() }?.map { Block.Paragraph(RichText(it)) }.orEmpty()
@@ -202,7 +208,7 @@ object Extractor {
      * the reader shows itself. A box with pictures goes too when it is a teaser of another page: the
      * pictures are links themselves and nearly all of its text is a headline's worth of links.
      */
-    private fun clean(candidate: Element, title: String?) {
+    private fun clean(candidate: Element, titles: Set<String>) {
         candidate.select("div, section, ul, ol, table, p").filter { element ->
             val text = element.text()
             if (element.parent() == null || text.isEmpty() || element.selectFirst("pre, blockquote") != null) return@filter false
@@ -217,9 +223,22 @@ object Extractor {
             }
             (linkDensity(element) > 0.6f && links.size > 1) || (element.normalName() != "p" && text.length < 25 && links.size == 1 && linkDensity(element) > 0.9f)
         }.forEach { it.remove() }
-        if (title != null) candidate.select("h1, h2").firstOrNull { it.text().trim().equals(title, ignoreCase = true) }?.remove()
+        // The title the reader shows itself: any heading that repeats it, and a top-level heading standing before the
+        // article's first paragraph, which is the page's title whatever it says (a page may have another <h1> first:
+        // its section's name, so the article's own is not "the first heading")
+        candidate.select("h1, h2").filter { plain(it.text()) in titles }.forEach { it.remove() }
+        for (element in candidate.select("h1, p")) {
+            if (element.normalName() == "p") {
+                if (element.text().length >= 25) break
+            } else {
+                element.remove()
+            }
+        }
         candidate.select("header").filter { it.selectFirst("p, img, figure") == null }.forEach { it.remove() }
     }
+
+    /** A title as it is compared: case and the kind of spaces aside. */
+    private fun plain(text: String): String = text.replace(Regex("""[\s\u00A0]+"""), " ").trim().lowercase()
 
     /** `articleBody` of a schema.org article in the page's JSON-LD, if it carries one. */
     private fun structuredBody(document: Document): String? {

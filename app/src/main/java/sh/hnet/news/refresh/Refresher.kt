@@ -257,7 +257,7 @@ class Refresher(
             } else {
                 try {
                     val response = http.get(link, HttpLimits.DOCUMENT)
-                    val extracted = Extractor.extract(response.body, response.charset, response.url)
+                    val extracted = Extractor.extract(response.body, response.charset, response.url, articleDao.article(id)?.title)
                     if (extracted != null) {
                         page = extracted.blocks
                         lead = lead ?: extracted.leadImage

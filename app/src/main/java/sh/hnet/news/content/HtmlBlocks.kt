@@ -31,6 +31,9 @@ object HtmlBlocks {
      * @param splitting Two line breaks in a row end the paragraph. Only for an article's own text: a walker
      *   that gathers one piece of text (a caption, a table's cell) keeps the breaks as line ends
      */
+    /** Class names pages give a caption: "caption", "wp-caption-text", "photo-credit", "image--author", "media--lead". */
+    private val captionName = Regex("""(^|[-_])(fig)?caption([-_]|$)|(^|[-_])credits?([-_]|$)|(image|img|photo|picture|media|foto)[-_]+(author|lead|desc|description|source|title)([-_]|$)""", RegexOption.IGNORE_CASE)
+
     private class Walker(private val splitting: Boolean = false) {
         val out = mutableListOf<Block>()
         /** Inside an inline element or a heading, whose text is one piece: ending the paragraph there would lose its style, its link or its level. */
@@ -104,6 +107,8 @@ object HtmlBlocks {
                 tag == "img" -> image(element)?.let { flush(); out += it }
                 tag == "picture" -> (element.selectFirst("img")?.let { image(it) } ?: source(element)?.let { Block.Image(it) })?.let { flush(); out += it }
                 tag == "figure" -> figure(element)
+                // Named as a caption and standing right after an image: the image's caption, though the page uses no <figcaption>
+                isCaption(element) && captionOf(element) -> Unit
                 tag == "blockquote" -> {
                     flush()
                     if (element.hasClass("twitter-tweet") || element.hasClass("instagram-media") || element.hasClass("tiktok-embed") || element.hasClass("bluesky-embed")) {
@@ -151,6 +156,31 @@ object HtmlBlocks {
             whole--
             if (out.size == before && text.length > start) spans += Span(start, text.length, style, url)
         }
+
+        /**
+         * Takes [element]'s text as the caption of the image just before it; false when there is no
+         * such image, and the element is then read as any other. Pages write captions in many ways
+         * without `<figure>`: a description and a credit as two elements (both are taken, on two
+         * lines), or the same caption twice, for two screen widths (the second is passed over).
+         */
+        private fun captionOf(element: Element): Boolean {
+            if (text.isNotBlank()) return false
+            val image = out.lastOrNull() as? Block.Image ?: return false
+            val caption = Walker().apply { children(element) }.cellText()
+            val had = image.caption
+            fun plain(text: String) = text.replace(Regex("""\s+"""), " ").trim()
+            val merged = when {
+                caption.text.isBlank() -> had
+                had == null -> caption
+                plain(caption.text) in plain(had.text) -> had
+                plain(had.text) in plain(caption.text) -> caption
+                else -> RichText(had.text + "\n" + caption.text, had.spans + caption.spans.map { it.copy(start = it.start + had.text.length + 1, end = it.end + had.text.length + 1) })
+            }
+            out[out.lastIndex] = image.copy(caption = merged)
+            return true
+        }
+
+        private fun isCaption(element: Element): Boolean = element.classNames().any { captionName.containsMatchIn(it) }
 
         private fun figure(element: Element) {
             flush()

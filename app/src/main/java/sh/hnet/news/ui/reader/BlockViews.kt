@@ -257,6 +257,8 @@ fun shareText(context: Context, title: String?, link: String) {
 
 /**
  * An image from the phone's store (SPEC §5.6), its space held from the stored size before it draws.
+ * With a caption, the two share a card (the owner's choice of 15 Nov 2026; the SPEC had the caption
+ * as plain text under the image).
  * It opens full screen by its button only: a thumb landing on it while scrolling opens nothing. One
  * that is not on the phone is a placeholder of the same size with "Fetch image".
  */
@@ -286,7 +288,10 @@ private fun ImageView(block: Block.Image) {
     val natural: Dp? = block.width.takeIf { it in 1 until columnPx / 2 }?.let { with(density) { it.toDp() } }
     val noNetwork = stringResource(R.string.error_no_network)
     val notFetched = stringResource(R.string.msg_image_not_fetched)
-    Column(Modifier.fillMaxWidth().padding(bottom = 20.dp)) {
+    val caption = block.caption?.takeIf { it.text.isNotBlank() }
+    // An image with a caption stands with it on one card, so the caption reads as the image's and not as the article's next line
+    val card = if (caption != null) Modifier.background(MaterialTheme.colorScheme.surfaceContainer, RoundedCornerShape(16.dp)).padding(4.dp) else Modifier
+    Column(Modifier.fillMaxWidth().padding(bottom = 20.dp).then(card)) {
         Box(
             (if (natural != null && !(read && picture == null)) Modifier.width(natural) else Modifier.fillMaxWidth())
                 .aspectRatio(ratio.coerceIn(0.4f, 6f))
@@ -325,8 +330,8 @@ private fun ImageView(block: Block.Image) {
                 }
             }
         }
-        block.caption?.takeIf { it.text.isNotBlank() }?.let {
-            RichTextView(it, MaterialTheme.typography.bodySmall, MaterialTheme.colorScheme.onSurfaceVariant, Modifier.padding(top = 8.dp))
+        if (caption != null) {
+            RichTextView(caption, MaterialTheme.typography.bodySmall, MaterialTheme.colorScheme.onSurfaceVariant, Modifier.padding(start = 8.dp, end = 8.dp, top = 8.dp, bottom = 6.dp))
         }
     }
 }

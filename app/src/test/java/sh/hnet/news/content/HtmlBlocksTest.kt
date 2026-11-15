@@ -100,6 +100,29 @@ class HtmlBlocksTest {
     }
 
     @Test
+    fun `captions written without a figure belong to their image, once`() {
+        assertEquals(
+            listOf(
+                Block.Image("https://site.example/a.jpg", caption = RichText("What it shows\nPhoto: Someone")),
+                p("The article goes on."),
+                Block.Image("https://site.example/b.jpg", caption = RichText("A launch. Credit: The company")),
+                p("Text between."),
+                p("A caption class without an image before it is text."),
+            ),
+            convert(
+                """
+                <div class="article--image"><picture><img src="/a.jpg"></picture><p class="article--media--lead">What it shows</p><p class="image--author">Photo: Someone</p></div>
+                <p>The article goes on.</p>
+                <div class="lightbox"><a href="/b-full.jpg"><img src="/b.jpg"></a><div class="pswp-caption-content"><div class="caption">A launch. <span class="caption-credit">Credit: The company</span></div></div></div>
+                <div class="caption wide">A launch. Credit: The company</div>
+                <p>Text between.</p>
+                <p class="caption">A caption class without an image before it is text.</p>
+                """,
+            ),
+        )
+    }
+
+    @Test
     fun `quotes, lists, code, tables and rules`() {
         val blocks = convert(
             """

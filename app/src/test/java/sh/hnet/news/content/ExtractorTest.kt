@@ -162,6 +162,30 @@ class ExtractorTest {
     }
 
     @Test
+    fun `the article's title goes also when it is not the page's first heading`() {
+        val extracted = Extractor.extract(
+            """
+            <html><body>
+            <h1>The Section</h1>
+            <article class="post">
+              <h1>Someone: A column with a title</h1>
+              <div class="article-body">
+                <p>First. ${sentence.repeat(3)}</p>
+                <h2>Inside</h2>
+                <p>Last. ${sentence.repeat(3)}</p>
+              </div>
+            </article>
+            </body></html>
+            """.trimIndent(),
+            url,
+            title = "Someone: A column with a title",
+        )
+        assertNotNull(extracted)
+        val headings = extracted!!.blocks.filterIsInstance<Block.Heading>().map { it.text.text }
+        assertEquals(listOf("Inside"), headings)
+    }
+
+    @Test
     fun `a page without article markup is cut by its paragraphs`() {
         val extracted = Extractor.extract(page("""<div id="tresc"><p>Pierwszy. ${sentence.repeat(2)}</p><p>Drugi. ${sentence.repeat(2)}</p><p>Trzeci. ${sentence.repeat(2)}</p></div>"""), url)
         val text = Blocks.text(extracted!!.blocks)
