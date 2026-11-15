@@ -60,6 +60,18 @@ fun ConfirmDestructiveDialog(
     )
 }
 
+/**
+ * A page's action that stands beside its destructive ones without being one: the same full-width
+ * outlined button as [DestructiveButton], in the button's own color.
+ */
+@Composable
+fun PageActionButton(text: String, @DrawableRes icon: Int, onClick: () -> Unit, modifier: Modifier = Modifier, enabled: Boolean = true) {
+    OutlinedButton(onClick = onClick, enabled = enabled, modifier = modifier.fillMaxWidth()) {
+        Icon(painterResource(icon), contentDescription = null, modifier = Modifier.size(18.dp))
+        Text(text, modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
 /** [ConfirmDestructiveDialog] with a plain title and one paragraph of text. */
 @Composable
 fun ConfirmDestructiveDialog(

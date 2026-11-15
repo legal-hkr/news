@@ -344,4 +344,14 @@
     <string name="notification_feed_count" translatable="false">%1$s (%2$d)</string>
     <string name="notification_other_feeds">other feeds (%d)</string>
     <string name="msg_privacy_badge">The badge on the icon uses one silent notification, created on the phone.</string>
+    <string name="label_refetch">Fetch articles again</string>
+    <string name="title_refetch">Fetch articles again?</string>
+    <string name="msg_refetch">The pages of stored articles will be fetched again, along with any images missing from the phone. An article that can’t be fetched will stay as it is.</string>
+    <string name="label_refetch_all">All</string>
+    <string name="label_refetch_unread">Unread only</string>
+    <string name="label_refetch_saved">Saved only</string>
+    <string name="label_name_count" translatable="false">%1$s (%2$d)</string>
+    <string name="button_fetch">Fetch</string>
+    <string name="msg_refetching">Fetching again (%1$d of %2$d)</string>
+    <string name="button_stop_refetch">Stop (%1$d of %2$d)</string>
 </resources>

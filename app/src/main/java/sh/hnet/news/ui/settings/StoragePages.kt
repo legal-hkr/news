@@ -2,6 +2,10 @@
 
 package sh.hnet.news.ui.settings
 
+import sh.hnet.news.ui.components.SingleChoiceDialog
+import sh.hnet.news.refresh.Refetch
+import androidx.compose.foundation.layout.size
+import androidx.compose.runtime.LaunchedEffect
 import android.text.format.Formatter
 import androidx.annotation.DrawableRes
 import androidx.compose.foundation.layout.Arrangement
@@ -32,6 +36,7 @@ import sh.hnet.news.R
 import sh.hnet.news.data.Usage
 import sh.hnet.news.ui.components.ConfirmDestructiveDialog
 import sh.hnet.news.ui.components.DestructiveButton
+import sh.hnet.news.ui.components.PageActionButton
 import sh.hnet.news.ui.components.RowIcon
 import sh.hnet.news.ui.components.SettingsGroup
 import sh.hnet.news.ui.components.SettingsNote
@@ -68,6 +73,10 @@ fun StorageScreen(onBack: () -> Unit) {
     val usage by produceState<Usage?>(null, measured) { value = app.storage.usage() }
     var clearingImages by remember { mutableStateOf(false) }
     var clearingArticles by remember { mutableStateOf(false) }
+    var choosing by remember { mutableStateOf(false) }
+    val progress by app.refresher.progress.collectAsStateWithLifecycle()
+    // What a run fetched shows in the numbers above
+    LaunchedEffect(progress == null) { measured++ }
     fun size(bytes: Long): String = Formatter.formatShortFileSize(context, bytes)
 
     SettingsPage(title = stringResource(R.string.title_storage), onBack = onBack) {
@@ -96,9 +105,42 @@ fun StorageScreen(onBack: () -> Unit) {
             row { shapes -> UsageRow(shapes, R.drawable.ic_image, stringResource(R.string.label_images), usage?.let { size(it.imageBytes) }) }
         }
         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // The one action here that removes nothing: the same button, without the error color. While such a run is
+            // under way it says how far it is and stops it; it is not to be started while a refresh runs
+            val running = progress
+            if (running?.again == true) {
+                PageActionButton(stringResource(R.string.button_stop_refetch, running.done, running.total), R.drawable.ic_close, { app.refresher.current()?.cancel() })
+            } else {
+                PageActionButton(stringResource(R.string.label_refetch), R.drawable.ic_download, { choosing = true }, enabled = running == null)
+            }
             DestructiveButton(stringResource(R.string.button_clear_images), R.drawable.ic_delete, { clearingImages = true }, enabled = (usage?.clearableImageBytes ?: 0) > 0)
             DestructiveButton(stringResource(R.string.button_clear_articles), R.drawable.ic_delete, { clearingArticles = true }, enabled = (usage?.clearableArticles ?: 0) > 0)
         }
+    }
+
+    if (choosing) {
+        // How many articles each choice means, so the size of what is asked for is plain before it starts
+        val counts by produceState<Map<Refetch, Int>>(emptyMap()) {
+            value = mapOf(
+                Refetch.ALL to app.articles.refetchableCount(unread = false, saved = false),
+                Refetch.UNREAD to app.articles.refetchableCount(unread = true, saved = false),
+                Refetch.SAVED to app.articles.refetchableCount(unread = false, saved = true),
+            )
+        }
+        val names = mapOf(Refetch.ALL to R.string.label_refetch_all, Refetch.UNREAD to R.string.label_refetch_unread, Refetch.SAVED to R.string.label_refetch_saved)
+        SingleChoiceDialog(
+            title = AnnotatedString(stringResource(R.string.title_refetch)),
+            options = Refetch.entries,
+            initial = Refetch.ALL,
+            label = { which -> counts[which]?.let { stringResource(R.string.label_name_count, stringResource(names.getValue(which)), it) } ?: stringResource(names.getValue(which)) },
+            confirmLabel = stringResource(R.string.button_fetch),
+            onConfirm = { which ->
+                choosing = false
+                app.refreshRequests.requestRefetch(which)
+            },
+            onDismiss = { choosing = false },
+            description = stringResource(R.string.msg_refetch),
+        )
     }
 
     val current = usage

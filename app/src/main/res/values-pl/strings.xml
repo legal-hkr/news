@@ -341,4 +341,13 @@
     <string name="notification_new_articles">Nowe artykuły: %d</string>
     <string name="notification_other_feeds">inne kanały (%d)</string>
     <string name="msg_privacy_badge">Plakietka na ikonie korzysta z jednego cichego powiadomienia, tworzonego w telefonie.</string>
+    <string name="label_refetch">Pobierz artykuły ponownie</string>
+    <string name="title_refetch">Pobrać artykuły ponownie?</string>
+    <string name="msg_refetch">Strony pobranych artykułów zostaną pobrane ponownie, razem z obrazami, których nie ma w telefonie. Artykuł, którego nie uda się pobrać, pozostanie bez zmian.</string>
+    <string name="label_refetch_all">Wszystkie</string>
+    <string name="label_refetch_unread">Tylko nieprzeczytane</string>
+    <string name="label_refetch_saved">Tylko zapisane</string>
+    <string name="button_fetch">Pobierz</string>
+    <string name="msg_refetching">Ponowne pobieranie (%1$d z %2$d)</string>
+    <string name="button_stop_refetch">Przerwij (%1$d z %2$d)</string>
 </resources>

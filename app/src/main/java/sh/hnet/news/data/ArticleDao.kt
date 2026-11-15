@@ -133,6 +133,24 @@ interface ArticleDao {
     @Query("DELETE FROM article_search")
     suspend fun deleteAllSearch()
 
+    /**
+     * The articles whose page can be fetched again (Settings › Storage): those with an address whose
+     * feed is set to full pages or which have a page stored, newest first; with [unread] or [saved]
+     * only such ones.
+     */
+    @Query(
+        "SELECT a.* FROM article a JOIN feed f ON f.id = a.feedId LEFT JOIN article_content c ON c.articleId = a.id " +
+            "WHERE a.gone = 0 AND a.link IS NOT NULL AND (f.fullPage = 1 OR c.page IS NOT NULL) AND (:unread = 0 OR a.read = 0) AND (:saved = 0 OR a.saved = 1) " +
+            "ORDER BY a.published DESC",
+    )
+    suspend fun refetchable(unread: Boolean, saved: Boolean): List<Article>
+
+    @Query(
+        "SELECT COUNT(*) FROM article a JOIN feed f ON f.id = a.feedId LEFT JOIN article_content c ON c.articleId = a.id " +
+            "WHERE a.gone = 0 AND a.link IS NOT NULL AND (f.fullPage = 1 OR c.page IS NOT NULL) AND (:unread = 0 OR a.read = 0) AND (:saved = 0 OR a.saved = 1)",
+    )
+    suspend fun refetchableCount(unread: Boolean, saved: Boolean): Int
+
     // Storage (SPEC §13): what goes by age or by the clearing actions, and what is in use
 
     @Query("SELECT id FROM article WHERE feedId = :feedId AND saved = 0 AND gone = 0 AND published < :before")

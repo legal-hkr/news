@@ -20,8 +20,8 @@ import sh.hnet.news.Preferences
  * background the system holds them back, and on opening the app they are left out.
  */
 class RefreshRequests(private val context: Context, private val preferences: Preferences, private val refresher: Refresher, private val scope: CoroutineScope) {
-    /** What waits for the answer; [feedIds] null for every feed. */
-    class Waiting(val feedIds: Collection<Long>?)
+    /** What waits for the answer: a refresh ([feedIds] null for every feed), or with [refetch] stored articles to fetch again. */
+    class Waiting(val feedIds: Collection<Long>?, val refetch: Refetch? = null)
 
     private val _waiting = MutableStateFlow<Waiting?>(null)
 
@@ -52,10 +52,18 @@ class RefreshRequests(private val context: Context, private val preferences: Pre
         }
     }
 
+    /** Stored articles fetched again, at the user's wish (Settings › Storage): the same promise, the same question. */
+    fun requestRefetch(which: Refetch) {
+        scope.launch {
+            if (preferences.refreshSettings().unmeteredOnly && metered()) _waiting.value = Waiting(null, which) else refresher.refetch(which)
+        }
+    }
+
     /** The answer: everything, text only (images wait for the next refresh), or null for not now. */
     fun answer(textOnly: Boolean?) {
         val waiting = _waiting.getAndUpdate { null } ?: return
-        if (textOnly != null) scope.launch { start(waiting.feedIds, textOnly, afterCurrent = true) }
+        if (textOnly == null) return
+        if (waiting.refetch != null) refresher.refetch(waiting.refetch, textOnly) else scope.launch { start(waiting.feedIds, textOnly, afterCurrent = true) }
     }
 
     /** When the app opens (SPEC §14.5): the app's own refresh, so on a metered network it follows the setting without asking. */

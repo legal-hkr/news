@@ -43,8 +43,11 @@ import java.util.concurrent.atomic.AtomicInteger
 /** Why a feed's refresh failed, as its page names it (SPEC §10.4); stored by name. */
 enum class FailureKind { NO_NETWORK, NO_ANSWER, NOT_FOUND, NOT_A_FEED, REFUSED }
 
-/** A refresh under way: [done] of [total] feeds. */
-data class RefreshProgress(val done: Int, val total: Int)
+/** A refresh under way: [done] of [total] feeds; with [again], articles being fetched again. */
+data class RefreshProgress(val done: Int, val total: Int, val again: Boolean = false)
+
+/** Which stored articles to fetch again (Settings › Storage). */
+enum class Refetch { ALL, UNREAD, SAVED }
 
 /**
  * Refreshing (SPEC §2.1, §10): for each feed, its document (not sent again when unchanged), the
@@ -87,6 +90,61 @@ class Refresher(
                     articleDao.endFetching()
                     // Bodies written for articles that went meanwhile (their feed was unsubscribed from during its fetch)
                     articleDao.forgetOrphans()
+                    try {
+                        afterRun()
+                    } catch (_: Exception) {
+                        // Tidying up is tried again after the next refresh
+                    }
+                }
+                _progress.value = null
+                running.set(false)
+            }
+        }.also { job = it }
+    }
+
+    /**
+     * Fetches the pages of stored articles again (Settings › Storage): what was cut out of a page
+     * when it was fetched stays as it was cut, so an article gains from a better extraction, or from
+     * what its publisher added since, only by being fetched anew. Images missing from the phone come
+     * with it. An article whose page is gone, or gives nothing this time, keeps what it has. Takes
+     * the refresh's place: false when a refresh or another such run is under way.
+     */
+    fun refetch(which: Refetch, textOnly: Boolean = false): Job? {
+        if (!running.compareAndSet(false, true)) return null
+        return scope.launch(Dispatchers.Default) {
+            try {
+                val articles = articleDao.refetchable(unread = which == Refetch.UNREAD, saved = which == Refetch.SAVED)
+                if (articles.isNotEmpty()) {
+                    _progress.value = RefreshProgress(0, articles.size, again = true)
+                    // Read once, before the articles are taken several at a time; feeds kept only for their saved articles are among them
+                    val feeds = feedDao.everyFeed().associateBy { it.id }
+                    val limit = Semaphore(PARALLEL_FEEDS)
+                    coroutineScope {
+                        articles.map { article ->
+                            async {
+                                limit.withPermit {
+                                    try {
+                                        val feed = feeds[article.feedId]
+                                        if (feed != null) {
+                                            val content = articleDao.content(article.id)
+                                            val stored = content?.page?.let { Blocks.decode(it) }?.takeIf { it.isNotEmpty() }
+                                            val rest = fetchRest(feed, fullPage = true, article.id, article.link, article.imageUrl, Blocks.decode(content?.feed), stored, textOnly, pageAllowed = true, again = true)
+                                            // A feed kept on its own content was never incomplete for lacking a page
+                                            articleDao.setCompleted(article.id, if (feed.fullPage) rest.state else article.state, rest.lead, Blocks.words(rest.shown))
+                                        }
+                                    } catch (e: CancellationException) {
+                                        throw e
+                                    } catch (_: Exception) {
+                                        // This article keeps what it has
+                                    }
+                                    _progress.update { it?.copy(done = it.done + 1) }
+                                }
+                            }
+                        }.awaitAll()
+                    }
+                }
+            } finally {
+                withContext(NonCancellable) {
                     try {
                         afterRun()
                     } catch (_: Exception) {
@@ -245,13 +303,15 @@ class Refresher(
 
     /**
      * Fetches what an article still lacks – its page when the feed wants one and [storedPage] is
-     * none, then the images of what will be shown – and stores the bodies.
+     * none, then the images of what will be shown – and stores the bodies. With [again] the page is
+     * fetched though one is stored, and replaces it only when the fetch gives one: a page that is
+     * gone, or cannot be cut this time, leaves the article as it is.
      */
-    private suspend fun fetchRest(feed: Feed, fullPage: Boolean, id: Long, link: String?, knownLead: String?, feedBlocks: List<Block>, storedPage: List<Block>?, textOnly: Boolean, pageAllowed: Boolean): Rest {
+    private suspend fun fetchRest(feed: Feed, fullPage: Boolean, id: Long, link: String?, knownLead: String?, feedBlocks: List<Block>, storedPage: List<Block>?, textOnly: Boolean, pageAllowed: Boolean, again: Boolean = false): Rest {
         var state = ArticleState.COMPLETE
         var page = storedPage
         var lead = knownLead
-        if (fullPage && link != null && page == null) {
+        if (fullPage && link != null && (page == null || again)) {
             if (!pageAllowed) {
                 state = ArticleState.INCOMPLETE
             } else {
@@ -261,11 +321,11 @@ class Refresher(
                     if (extracted != null) {
                         page = extracted.blocks
                         lead = lead ?: extracted.leadImage
-                    } else {
+                    } else if (page == null) {
                         state = ArticleState.NOT_EXTRACTED
                     }
                 } catch (_: FetchFailure) {
-                    state = ArticleState.INCOMPLETE
+                    if (page == null) state = ArticleState.INCOMPLETE
                 }
             }
         }

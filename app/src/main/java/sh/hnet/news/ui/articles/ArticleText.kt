@@ -58,7 +58,7 @@ fun refreshSubtitle(progress: RefreshProgress?, last: LastRefresh?, empty: Boole
     val context = LocalContext.current
     val locale = LocalConfiguration.current.locales[0]
     if (progress != null) {
-        return stringResource(if (empty) R.string.msg_first_refresh else R.string.msg_refreshing, progress.done, progress.total)
+        return stringResource(if (progress.again) R.string.msg_refetching else if (empty) R.string.msg_first_refresh else R.string.msg_refreshing, progress.done, progress.total)
     }
     if (last == null) return null
     val zone = ZoneId.systemDefault()
