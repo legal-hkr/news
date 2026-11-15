@@ -30,14 +30,4 @@
         android:textColor="@color/widget_inverse_on_surface"
         android:textSize="15dp"
         android:textStyle="bold" />
-
-    <ImageView
-        android:id="@+id/badge_state"
-        android:layout_width="16dp"
-        android:layout_height="16dp"
-        android:layout_marginStart="4dp"
-        android:src="@drawable/ic_check"
-        android:tint="@color/widget_inverse_on_surface"
-        android:visibility="gone"
-        tools:ignore="UseAppTint" />
 </LinearLayout>

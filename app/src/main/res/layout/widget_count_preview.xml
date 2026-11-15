@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Count widget (SPEC-widgets §4): the pill alone, centered in its cell – the feed symbol and the unread count of the widget's source, or a check (nothing unread) or a plus (no feeds yet) in the number's place. Sizes are in dp, text too: the widget lives in a fixed cell. Only the pill takes taps. This copy is the widget picker's preview, with the sample count of the boards. -->
+<!-- The Count widget (SPEC-widgets §4): the pill alone, centered in its cell – the feed symbol and the unread count of the widget's source, or a double check (nothing unread) or a plus (no feeds yet) in the number's place. Sizes are in dp, text too: the widget lives in a fixed cell. Only the pill takes taps. This copy is the widget picker's preview, with the sample count of the boards. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="SpUsage,UselessParent,ContentDescription"
@@ -45,7 +45,7 @@
             android:layout_width="18dp"
             android:layout_height="18dp"
             android:layout_marginStart="5dp"
-            android:src="@drawable/ic_check"
+            android:src="@drawable/ic_done_all_bold"
             android:tint="@color/widget_inverse_on_surface"
             android:visibility="gone"
             tools:ignore="UseAppTint" />

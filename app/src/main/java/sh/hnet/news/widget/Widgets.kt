@@ -283,7 +283,7 @@ object Widgets {
         is Source.Folder -> feeds.filter { it.folderId == source.id }.sumOf { unread[it.id] ?: 0 }
     }
 
-    /** Count, 1×1 (§4): the number up to 99, then "99+"; a check for nothing unread, a plus for no feeds yet. */
+    /** Count, 1×1 (§4): the number up to 99, then "99+"; a double check for nothing unread, a plus for no feeds yet. */
     private fun count(context: Context, source: Source, noFeeds: Boolean, unread: Int): RemoteViews = RemoteViews(context.packageName, R.layout.widget_count).apply {
         val number = unread > 0 && !noFeeds
         setViewVisibility(R.id.count, if (number) View.VISIBLE else View.GONE)
@@ -291,7 +291,7 @@ object Widgets {
         if (number) {
             setTextViewText(R.id.count, if (unread > MAX_COUNT) "$MAX_COUNT+" else unread.toString())
         } else {
-            setImageViewResource(R.id.state, if (noFeeds) R.drawable.ic_add else R.drawable.ic_check)
+            setImageViewResource(R.id.state, if (noFeeds) R.drawable.ic_add else R.drawable.ic_done_all_bold)
         }
         // "99+" is wider: its end padding is 12 dp instead of 14
         val density = context.resources.displayMetrics.density
@@ -308,13 +308,15 @@ object Widgets {
         setOnClickPendingIntent(R.id.pill, open(context, if (noFeeds) "add" else "list", source))
     }
 
-    /** The badge on a frame's or the first strip's corner (§3.3): the full number, a check for nothing unread; none without feeds. */
+    /** The badge on a frame's or the first strip's corner (§3.3): the full number, or the feed symbol alone in a circle for nothing unread (the widget says "Everything read." itself then); none without feeds. */
     private fun RemoteViews.badge(context: Context, source: Source, noFeeds: Boolean, unread: Int) {
         setViewVisibility(R.id.badge, if (noFeeds) View.GONE else View.VISIBLE)
         if (noFeeds) return
         setViewVisibility(R.id.badge_count, if (unread > 0) View.VISIBLE else View.GONE)
-        setViewVisibility(R.id.badge_state, if (unread > 0) View.GONE else View.VISIBLE)
         if (unread > 0) setTextViewText(R.id.badge_count, unread.toString())
+        // The symbol alone stands in the middle of a circle
+        val density = context.resources.displayMetrics.density
+        setViewPadding(R.id.badge, ((if (unread > 0) 9 else 7) * density).toInt(), 0, ((if (unread > 0) 12 else 7) * density).toInt(), 0)
         setContentDescription(R.id.badge, if (unread > 0) context.getString(R.string.content_description_widget_unread, unread) else context.getString(R.string.content_description_widget_all_read))
         setOnClickPendingIntent(R.id.badge, open(context, "list", source))
     }
@@ -323,7 +325,7 @@ object Widgets {
     private fun newest(context: Context, source: Source, noFeeds: Boolean, unread: Int, row: ArticleRow?, picture: Bitmap?): RemoteViews {
         if (row == null) {
             return RemoteViews(context.packageName, R.layout.widget_newest_state).apply {
-                setImageViewResource(R.id.state, if (noFeeds) R.drawable.ic_add else R.drawable.ic_check)
+                setImageViewResource(R.id.state, if (noFeeds) R.drawable.ic_add else R.drawable.ic_done_all)
                 setTextViewText(R.id.state_text, context.getString(if (noFeeds) R.string.label_add_first_feed else R.string.msg_empty_all_read))
                 setOnClickPendingIntent(R.id.frame, open(context, if (noFeeds) "add" else "list", source))
                 badge(context, source, noFeeds, unread)
@@ -343,7 +345,7 @@ object Widgets {
     private fun headlines(context: Context, source: Source, noFeeds: Boolean, unread: Int, rows: List<ArticleRow>, thumbnails: Map<Long, Bitmap?>, showAge: Boolean, strips: Int, thumbnailDp: Int, headlineLines: Int): RemoteViews {
         if (rows.isEmpty()) {
             return RemoteViews(context.packageName, R.layout.widget_headlines_state).apply {
-                setImageViewResource(R.id.strip_icon, if (noFeeds) R.drawable.ic_add else R.drawable.ic_check)
+                setImageViewResource(R.id.strip_icon, if (noFeeds) R.drawable.ic_add else R.drawable.ic_done_all)
                 setTextViewText(R.id.strip_headline, context.getString(if (noFeeds) R.string.label_add_first_feed else R.string.msg_empty_all_read))
                 setViewVisibility(R.id.strip_age, View.GONE)
                 setOnClickPendingIntent(R.id.strip, open(context, if (noFeeds) "add" else "list", source))

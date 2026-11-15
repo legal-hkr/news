@@ -39,7 +39,7 @@
                     android:layout_width="20dp"
                     android:layout_height="20dp"
                     android:layout_gravity="center"
-                    android:src="@drawable/ic_check"
+                    android:src="@drawable/ic_done_all"
                     android:tint="@color/widget_on_surface_variant"
                     tools:ignore="UseAppTint" />
 
