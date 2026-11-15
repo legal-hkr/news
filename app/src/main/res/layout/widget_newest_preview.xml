@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Newest article widget (SPEC-widgets §5) with a picture: one frame holding the oblong picture, which takes the height the caption leaves, the feed's name and the headline (up to 3 lines); the badge on its corner. The frame starts 8 dp from the start and 10 dp from the top, so the badge stays inside the widget's bounds. Sizes are in dp, text too. This copy is the widget picker's preview, with sample content. -->
+<!-- The Newest article widget (SPEC-widgets §5) with a picture: one frame holding the oblong picture, which takes the height the caption leaves, the feed's name and the headline (up to 3 lines); the badge on its corner. The frame starts 8 dp from the start and 10 dp from the top, so the badge stays inside the widget's bounds. Sizes are in dp, text too. This copy is the widget picker's preview, with sample content. The content stands 8 dp inside the preview: the launcher's widget picker cuts every preview to its own rounded corners, also one that names its background and clips to it, and would cut the badge's corner. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="SpUsage,UselessParent,ContentDescription,HardcodedText"
@@ -7,7 +7,8 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_floating_frame"
-    android:clipToOutline="true">
+    android:clipToOutline="true"
+    android:padding="8dp">
 
     <LinearLayout
         android:id="@+id/frame"
