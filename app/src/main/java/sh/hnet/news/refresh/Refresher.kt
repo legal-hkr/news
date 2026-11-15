@@ -120,24 +120,33 @@ class Refresher(
                     val feeds = feedDao.everyFeed().associateBy { it.id }
                     val limit = Semaphore(PARALLEL_FEEDS)
                     coroutineScope {
-                        articles.map { article ->
+                        // As a refresh does: several feeds at a time, one feed's pages one after another, so no site is asked for four pages at once
+                        articles.groupBy { it.feedId }.map { (feedId, ofFeed) ->
                             async {
                                 limit.withPermit {
-                                    try {
-                                        val feed = feeds[article.feedId]
-                                        if (feed != null) {
-                                            val content = articleDao.content(article.id)
-                                            val stored = content?.page?.let { Blocks.decode(it) }?.takeIf { it.isNotEmpty() }
-                                            val rest = fetchRest(feed, fullPage = true, article.id, article.link, article.imageUrl, Blocks.decode(content?.feed), stored, textOnly, pageAllowed = true, again = true)
-                                            // A feed kept on its own content was never incomplete for lacking a page
-                                            articleDao.setCompleted(article.id, if (feed.fullPage) rest.state else article.state, rest.lead, Blocks.words(rest.shown))
+                                    for (listed in ofFeed) {
+                                        try {
+                                            val feed = feeds[feedId]
+                                            // Read again: the article may have been removed (cleared, or older than a period just shortened) since the run began
+                                            val article = articleDao.article(listed.id)?.takeIf { !it.gone }
+                                            if (feed != null && article != null) {
+                                                val content = articleDao.content(article.id)
+                                                val stored = content?.page?.let { Blocks.decode(it) }?.takeIf { it.isNotEmpty() }
+                                                val rest = fetchRest(feed, fullPage = true, article.id, article.title, article.link, article.imageUrl, Blocks.decode(content?.feed), stored, textOnly, pageAllowed = true, again = true)
+                                                if (rest.stored) {
+                                                    // A feed kept on its own content was never incomplete for lacking a page
+                                                    articleDao.setCompleted(article.id, if (feed.fullPage) rest.state else article.state, rest.lead, Blocks.words(rest.shown))
+                                                    // The place where reading stopped is a place in the page that was: the new one starts at its top
+                                                    if (rest.replaced) articleDao.setPosition(article.id, 0, 0)
+                                                }
+                                            }
+                                        } catch (e: CancellationException) {
+                                            throw e
+                                        } catch (_: Exception) {
+                                            // This article keeps what it has
                                         }
-                                    } catch (e: CancellationException) {
-                                        throw e
-                                    } catch (_: Exception) {
-                                        // This article keeps what it has
+                                        _progress.update { it?.copy(done = it.done + 1) }
                                     }
-                                    _progress.update { it?.copy(done = it.done + 1) }
                                 }
                             }
                         }.awaitAll()
@@ -146,6 +155,8 @@ class Refresher(
             } finally {
                 withContext(NonCancellable) {
                     try {
+                        // Bodies written for articles that went meanwhile
+                        articleDao.forgetOrphans()
                         afterRun()
                     } catch (_: Exception) {
                         // Tidying up is tried again after the next refresh
@@ -277,7 +288,7 @@ class Refresher(
         // Unsubscribed from meanwhile: nothing more is fetched for it
         if (feedDao.feed(feed.id)?.removedAt != null) return
         val item = pending.item
-        val rest = fetchRest(feed, fullPage, pending.id, item.link, item.imageUrl, pending.feedBlocks, null, textOnly, pageAllowed)
+        val rest = fetchRest(feed, fullPage, pending.id, item.title, item.link, item.imageUrl, pending.feedBlocks, null, textOnly, pageAllowed)
         articleDao.setFetched(
             pending.id, rest.state, rest.lead,
             preview(item, pending.feedBlocks) ?: Blocks.text(rest.shown).take(PREVIEW_CHARS).takeIf { it.isNotEmpty() },
@@ -293,21 +304,26 @@ class Refresher(
     private suspend fun completeEarlier(feed: Feed, fullPage: Boolean, now: Long) {
         for (article in articleDao.incomplete(feed.id, now - RETRY_DAYS * DAY_MS, MAX_RETRIES)) {
             val content = articleDao.content(article.id)
-            val rest = fetchRest(feed, fullPage, article.id, article.link, article.imageUrl, Blocks.decode(content?.feed), content?.page?.let { Blocks.decode(it) }?.takeIf { it.isNotEmpty() }, textOnly = false, pageAllowed = true)
+            val rest = fetchRest(feed, fullPage, article.id, article.title, article.link, article.imageUrl, Blocks.decode(content?.feed), content?.page?.let { Blocks.decode(it) }?.takeIf { it.isNotEmpty() }, textOnly = false, pageAllowed = true)
             articleDao.setCompleted(article.id, rest.state, rest.lead, Blocks.words(rest.shown))
         }
     }
 
-    /** What [fetchRest] left: the article's state, its lead image and the blocks the reader shows; [page] when those are the page's. */
-    private class Rest(val state: Int, val lead: String?, val shown: List<Block>, val page: Boolean)
+    /**
+     * What [fetchRest] left: the article's state, its lead image and the blocks the reader shows; [page] when those are
+     * the page's, [replaced] when a page fetched again took the stored one's place, [stored] unless the article went meanwhile.
+     */
+    private class Rest(val state: Int, val lead: String?, val shown: List<Block>, val page: Boolean, val replaced: Boolean = false, val stored: Boolean = true)
 
     /**
      * Fetches what an article still lacks – its page when the feed wants one and [storedPage] is
      * none, then the images of what will be shown – and stores the bodies. With [again] the page is
-     * fetched though one is stored, and replaces it only when the fetch gives one: a page that is
-     * gone, or cannot be cut this time, leaves the article as it is.
+     * fetched though one is stored, and replaces it only when the fetch gives one worth having: a
+     * page that is gone, cannot be cut this time, or now holds under half the words of the stored
+     * one (an article moved behind a paywall, an address that now leads to a section's page) leaves
+     * the article as it is.
      */
-    private suspend fun fetchRest(feed: Feed, fullPage: Boolean, id: Long, link: String?, knownLead: String?, feedBlocks: List<Block>, storedPage: List<Block>?, textOnly: Boolean, pageAllowed: Boolean, again: Boolean = false): Rest {
+    private suspend fun fetchRest(feed: Feed, fullPage: Boolean, id: Long, title: String?, link: String?, knownLead: String?, feedBlocks: List<Block>, storedPage: List<Block>?, textOnly: Boolean, pageAllowed: Boolean, again: Boolean = false): Rest {
         var state = ArticleState.COMPLETE
         var page = storedPage
         var lead = knownLead
@@ -317,8 +333,8 @@ class Refresher(
             } else {
                 try {
                     val response = http.get(link, HttpLimits.DOCUMENT)
-                    val extracted = Extractor.extract(response.body, response.charset, response.url, articleDao.article(id)?.title)
-                    if (extracted != null) {
+                    val extracted = Extractor.extract(response.body, response.charset, response.url, title)
+                    if (extracted != null && (storedPage == null || Blocks.words(extracted.blocks) * 2 >= Blocks.words(storedPage))) {
                         page = extracted.blocks
                         lead = lead ?: extracted.leadImage
                     } else if (page == null) {
@@ -335,17 +351,22 @@ class Refresher(
             val wanted = (listOfNotNull(lead) + Blocks.images(shown).map { it.url }).distinct().take(MAX_IMAGES)
             if (textOnly) {
                 if (state == ArticleState.COMPLETE && wanted.any { !images.has(it) }) state = ArticleState.INCOMPLETE
+                // A page fetched again without its images: those on the phone keep the sizes measured when they were fetched
+                if (page !== storedPage && storedPage != null) {
+                    val known = Blocks.images(storedPage).filter { it.width > 0 && it.height > 0 }.associateBy { it.url }
+                    shown = Blocks.mapImages(shown) { image -> known[image.url]?.let { image.copy(width = it.width, height = it.height) } ?: image }
+                }
             } else {
                 val fetched = wanted.associateWith { images.fetchResult(it) }
                 if (state == ArticleState.COMPLETE && fetched.values.any { it is ImageStore.Fetched.Failed }) state = ArticleState.INCOMPLETE
                 shown = sized(shown, fetched)
             }
         }
-        // The article went while its page and images were fetched (its feed was unsubscribed from): nothing is stored for it
-        if (articleDao.article(id) == null) return Rest(state, lead, shown, page != null)
+        // The article went while its page and images were fetched (its feed was unsubscribed from, or it was removed): nothing is stored for it
+        if (articleDao.article(id)?.takeIf { !it.gone } == null) return Rest(state, lead, shown, page != null, stored = false)
         articleDao.upsert(ArticleContent(id, feed = Blocks.encode(if (page == null) shown else feedBlocks), page = if (page == null) null else Blocks.encode(shown)))
         search.index(id)
-        return Rest(state, lead, shown, page != null)
+        return Rest(state, lead, shown, page != null, replaced = storedPage != null && page != null && page !== storedPage && Blocks.text(page) != Blocks.text(storedPage))
     }
 
     /**
@@ -369,7 +390,7 @@ class Refresher(
         if (article.link == null) return false
         val feed = feedDao.feed(article.feedId) ?: return false
         val content = articleDao.content(article.id)
-        val rest = fetchRest(feed, fullPage = true, article.id, article.link, article.imageUrl, Blocks.decode(content?.feed), null, textOnly = false, pageAllowed = true)
+        val rest = fetchRest(feed, fullPage = true, article.id, article.title, article.link, article.imageUrl, Blocks.decode(content?.feed), null, textOnly = false, pageAllowed = true)
         if (feed.fullPage) {
             articleDao.setCompleted(article.id, rest.state, rest.lead, Blocks.words(rest.shown))
         } else if (rest.page) {

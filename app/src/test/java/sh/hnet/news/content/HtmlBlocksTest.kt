@@ -78,6 +78,24 @@ class HtmlBlocksTest {
     }
 
     @Test
+    fun `a box named as a caption that holds a picture is a picture of its own, and a credit card is not a credit`() {
+        assertEquals(
+            listOf(
+                Block.Image("https://site.example/one.jpg", caption = RichText("One")),
+                Block.Image("https://site.example/two.jpg", caption = RichText("Two")),
+                Block.Paragraph(RichText("Pay by card.")),
+            ),
+            convert(
+                """
+                <div class="wp-caption"><img src="/one.jpg"><p class="wp-caption-text">One</p></div>
+                <div class="wp-caption"><img src="/two.jpg"><p class="wp-caption-text">Two</p></div>
+                <div class="credit-card-offer">Pay by card.</div>
+                """,
+            ),
+        )
+    }
+
+    @Test
     fun `a gallery's figures keep their own captions, a wrapped caption is not read twice`() {
         assertEquals(
             listOf(

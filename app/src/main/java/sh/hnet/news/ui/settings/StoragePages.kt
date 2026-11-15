@@ -4,7 +4,6 @@ package sh.hnet.news.ui.settings
 
 import sh.hnet.news.ui.components.SingleChoiceDialog
 import sh.hnet.news.refresh.Refetch
-import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.LaunchedEffect
 import android.text.format.Formatter
 import androidx.annotation.DrawableRes
@@ -29,6 +28,10 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import sh.hnet.news.KEEP_DAYS
 import sh.hnet.news.NewsApplication
@@ -75,8 +78,8 @@ fun StorageScreen(onBack: () -> Unit) {
     var clearingArticles by remember { mutableStateOf(false) }
     var choosing by remember { mutableStateOf(false) }
     val progress by app.refresher.progress.collectAsStateWithLifecycle()
-    // What a run fetched shows in the numbers above
-    LaunchedEffect(progress == null) { measured++ }
+    // What a run fetched shows in the numbers above, once it ends
+    LaunchedEffect(Unit) { app.refresher.progress.map { it == null }.distinctUntilChanged().drop(1).filter { it }.collect { measured++ } }
     fun size(bytes: Long): String = Formatter.formatShortFileSize(context, bytes)
 
     SettingsPage(title = stringResource(R.string.title_storage), onBack = onBack) {

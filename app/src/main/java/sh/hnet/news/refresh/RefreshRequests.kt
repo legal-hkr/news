@@ -20,8 +20,8 @@ import sh.hnet.news.Preferences
  * background the system holds them back, and on opening the app they are left out.
  */
 class RefreshRequests(private val context: Context, private val preferences: Preferences, private val refresher: Refresher, private val scope: CoroutineScope) {
-    /** What waits for the answer: a refresh ([feedIds] null for every feed), or with [refetch] stored articles to fetch again. */
-    class Waiting(val feedIds: Collection<Long>?, val refetch: Refetch? = null)
+    /** What waits for the answer: with [refresh] a refresh ([feedIds] null for every feed), with [refetch] stored articles to fetch again; both may wait. */
+    class Waiting(val feedIds: Collection<Long>?, val refresh: Boolean = true, val refetch: Refetch? = null)
 
     private val _waiting = MutableStateFlow<Waiting?>(null)
 
@@ -44,7 +44,7 @@ class RefreshRequests(private val context: Context, private val preferences: Pre
             if (preferences.refreshSettings().unmeteredOnly && metered()) {
                 // One question for everything that waits
                 _waiting.update { earlier ->
-                    Waiting(if (earlier == null) feedIds else if (earlier.feedIds == null || feedIds == null) null else earlier.feedIds + feedIds)
+                    Waiting(if (earlier?.refresh != true) feedIds else if (earlier.feedIds == null || feedIds == null) null else earlier.feedIds + feedIds, refetch = earlier?.refetch)
                 }
             } else {
                 start(feedIds, textOnly = false, afterCurrent)
@@ -55,7 +55,11 @@ class RefreshRequests(private val context: Context, private val preferences: Pre
     /** Stored articles fetched again, at the user's wish (Settings › Storage): the same promise, the same question. */
     fun requestRefetch(which: Refetch) {
         scope.launch {
-            if (preferences.refreshSettings().unmeteredOnly && metered()) _waiting.value = Waiting(null, which) else refresher.refetch(which)
+            if (preferences.refreshSettings().unmeteredOnly && metered()) {
+                _waiting.update { earlier -> Waiting(earlier?.feedIds, refresh = earlier?.refresh == true, refetch = which) }
+            } else {
+                startRefetch(which, textOnly = false)
+            }
         }
     }
 
@@ -63,7 +67,10 @@ class RefreshRequests(private val context: Context, private val preferences: Pre
     fun answer(textOnly: Boolean?) {
         val waiting = _waiting.getAndUpdate { null } ?: return
         if (textOnly == null) return
-        if (waiting.refetch != null) refresher.refetch(waiting.refetch, textOnly) else scope.launch { start(waiting.feedIds, textOnly, afterCurrent = true) }
+        scope.launch {
+            if (waiting.refresh) start(waiting.feedIds, textOnly, afterCurrent = true)
+            if (waiting.refetch != null) startRefetch(waiting.refetch, textOnly)
+        }
     }
 
     /** When the app opens (SPEC §14.5): the app's own refresh, so on a metered network it follows the setting without asking. */
@@ -72,6 +79,11 @@ class RefreshRequests(private val context: Context, private val preferences: Pre
             val settings = preferences.refreshSettings()
             if (settings.onOpen && !(settings.unmeteredOnly && metered())) refresher.start()
         }
+    }
+
+    /** The user chose it, so it is not dropped because a refresh is under way: it starts when that one ends. */
+    private suspend fun startRefetch(which: Refetch, textOnly: Boolean) {
+        while (refresher.refetch(which, textOnly) == null) refresher.current()?.join() ?: yield()
     }
 
     private suspend fun start(feedIds: Collection<Long>?, textOnly: Boolean, afterCurrent: Boolean) {

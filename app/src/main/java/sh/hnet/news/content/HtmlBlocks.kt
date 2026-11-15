@@ -27,13 +27,13 @@ object HtmlBlocks {
         "li", "dd", "dt", "tr", "td", "th", "tbody", "thead", "tfoot", "caption", "body", "html",
     )
 
+    /** Class names pages give a caption: "caption", "wp-caption-text", "photo-credit", "image--author", "media--lead". Not "credit-card". */
+    private val captionName = Regex("""(^|[-_])(fig)?caption([-_]|$)|(^|[-_])credits?([-_]+(text|line|name|label))?$|(image|img|photo|picture|media|foto)[-_]+(author|lead|desc|description|source|title)([-_]|$)""", RegexOption.IGNORE_CASE)
+
     /**
      * @param splitting Two line breaks in a row end the paragraph. Only for an article's own text: a walker
      *   that gathers one piece of text (a caption, a table's cell) keeps the breaks as line ends
      */
-    /** Class names pages give a caption: "caption", "wp-caption-text", "photo-credit", "image--author", "media--lead". */
-    private val captionName = Regex("""(^|[-_])(fig)?caption([-_]|$)|(^|[-_])credits?([-_]|$)|(image|img|photo|picture|media|foto)[-_]+(author|lead|desc|description|source|title)([-_]|$)""", RegexOption.IGNORE_CASE)
-
     private class Walker(private val splitting: Boolean = false) {
         val out = mutableListOf<Block>()
         /** Inside an inline element or a heading, whose text is one piece: ending the paragraph there would lose its style, its link or its level. */
@@ -165,6 +165,8 @@ object HtmlBlocks {
          */
         private fun captionOf(element: Element): Boolean {
             if (text.isNotBlank()) return false
+            // A box named so that holds a picture or more than text is a captioned picture of its own (a second "wp-caption"), not this one's caption
+            if (element.selectFirst("img, picture, figure, video, audio, iframe, table, pre") != null) return false
             val image = out.lastOrNull() as? Block.Image ?: return false
             val caption = Walker().apply { children(element) }.cellText()
             val had = image.caption

@@ -227,13 +227,10 @@ object Extractor {
         // article's first paragraph, which is the page's title whatever it says (a page may have another <h1> first:
         // its section's name, so the article's own is not "the first heading")
         candidate.select("h1, h2").filter { plain(it.text()) in titles }.forEach { it.remove() }
-        for (element in candidate.select("h1, p")) {
-            if (element.normalName() == "p") {
-                if (element.text().length >= 25) break
-            } else {
-                element.remove()
-            }
-        }
+        // Only where there is such a paragraph: in text set as lines, without <p>, every <h1> would otherwise go
+        val headed = candidate.select("h1, p")
+        val first = headed.indexOfFirst { it.normalName() == "p" && it.text().length >= 25 }
+        if (first > 0) headed.take(first).filter { it.normalName() == "h1" }.forEach { it.remove() }
         candidate.select("header").filter { it.selectFirst("p, img, figure") == null }.forEach { it.remove() }
     }
 

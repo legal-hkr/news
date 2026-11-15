@@ -137,6 +137,42 @@ class ExtractorTest {
     }
 
     @Test
+    fun `headings of an article set as lines stay, the section's name before the first paragraph goes`() {
+        val lines = Extractor.extract(
+            """
+            <html><body>
+            <article class="full">
+              <h1>Article</h1>
+              <div class="content"><h1>Part one</h1>First. ${sentence.repeat(2)}<br /> <br />Second. ${sentence.repeat(2)}<br /> <br />Last. ${sentence}<br /></div>
+            </article>
+            </body></html>
+            """.trimIndent(),
+            url,
+        )
+        assertNotNull(lines)
+        assertTrue("Part one" in Blocks.text(lines!!.blocks))
+        val paragraphs = Extractor.extract(
+            """
+            <html><body>
+            <article class="post">
+              <h1>Opinions</h1>
+              <h1>The article's own title</h1>
+              <p>First. ${sentence.repeat(3)}</p>
+              <h1>Part two</h1>
+              <p>Last. ${sentence.repeat(3)}</p>
+            </article>
+            </body></html>
+            """.trimIndent(),
+            url,
+        )
+        assertNotNull(paragraphs)
+        val text = Blocks.text(paragraphs!!.blocks)
+        assertFalse("Opinions" in text)
+        assertFalse("own title" in text)
+        assertTrue("Part two" in text)
+    }
+
+    @Test
     fun `utility class names are not read as what an element is, and what is hidden in print goes`() {
         val extracted = Extractor.extract(
             """
