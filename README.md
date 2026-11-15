@@ -2,7 +2,7 @@
 
 A private, full-text feed reader for Android (RSS and Atom) that keeps articles on the phone for reading offline.
 
-**Current version**: v0.2.0
+**Current version**: v0.2.1
 
 Source code and releases: [git.hnet.sh/hkr/news](https://git.hnet.sh/hkr/news)
 
@@ -47,6 +47,7 @@ News is a reader for RSS and Atom feeds that fetches each article’s full text 
 - **Metered networks**: Only on unmetered networks if you wish, with a question before a manual refresh on a metered one
 - **Failures**: Incomplete articles are marked and completed later; a feed that keeps failing is quietly marked
 - **Storage**: Articles kept for as long as you set, for the whole app or for a single feed
+- **Fetch again**: Stored articles can be fetched again – all, unread only or saved only
 
 ### Widgets
 

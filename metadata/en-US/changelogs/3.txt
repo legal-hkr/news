@@ -1,0 +1,14 @@
+v0.2.1
+
+New:
+- Fetch articles again in Settings › Storage: all, unread only or saved only
+
+Changes:
+- “Saved only” shows read and unread articles
+- An image and its caption share one card; tapping the image opens it
+- Widgets with nothing unread: a double check mark on Count, only the feed symbol on the badge
+
+Fixes:
+- An article’s title is no longer repeated in its text
+- Image captions are recognized without a figure element
+- Widget previews are no longer cut off at a corner

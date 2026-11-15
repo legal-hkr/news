@@ -24,6 +24,7 @@ Odświeżanie i pamięć:
 - Opcjonalnie tylko w sieciach bez limitu danych, z pytaniem przed ręcznym odświeżeniem w sieci z limitem
 - Kanał, który przestał się odświeżać, jest dyskretnie oznaczany
 - Artykuły przechowywane przez wybrany czas, dla całej aplikacji albo dla pojedynczego kanału
+- Ponowne pobieranie przechowywanych artykułów: wszystkich, nieprzeczytanych albo zapisanych
 
 Widżety:
 - Licznik: liczba nieprzeczytanych artykułów w małej pastylce

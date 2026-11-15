@@ -1,0 +1,14 @@
+v0.2.1
+
+Nowości:
+- Pobierz artykuły ponownie w Ustawieniach › Pamięć: wszystkie, nieprzeczytane lub zapisane
+
+Zmiany:
+- „Tylko zapisane” pokazuje też przeczytane artykuły
+- Obraz i podpis na jednej karcie; dotknięcie obrazu go otwiera
+- Brak nieprzeczytanych: podwójny znacznik w „Liczniku”, sam symbol kanału na plakietce
+
+Poprawki:
+- Tytuł artykułu nie powtarza się w tekście
+- Podpisy rozpoznawane bez znacznika figure
+- Podglądy widżetów bez przyciętego rogu

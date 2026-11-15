@@ -24,6 +24,7 @@ Refresh and storage:
 - Only on unmetered networks if you wish, with a question before a manual refresh on a metered one
 - A feed that keeps failing is quietly marked
 - Articles kept for as long as you set, for the whole app or for a single feed
+- Stored articles can be fetched again: all, unread only or saved only
 
 Widgets:
 - Count: the number of unread articles in a small pill
