@@ -1,21 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The app's mark for the status bar and the notification shade: the launcher icon's own art (ic_launcher_monochrome – the dot and the two waves, not redrawn), framed for a 24 dp icon instead of the adaptive icon's canvas, where it would come out at half the size of other apps' icons. The art's bounds on its 512 grid are 136…376.5 by 135.5…376; here they fill 20 of the 24 dp. -->
+<!-- The app's mark for the status bar and the notification shade: the launcher icon's own art (ic_launcher_monochrome – the dot and the two waves, not redrawn), framed for a 24 dp icon instead of the adaptive icon's canvas, where it would come out at half the size of other apps' icons. The art's bounds on its 512 grid are 124…388.55 by 123.45…388; here they fill 20 of the 24 dp. -->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
-    android:viewportWidth="288.6"
-    android:viewportHeight="288.6">
-    <group android:translateX="-111.95" android:translateY="-111.45">
+    android:viewportWidth="317.46"
+    android:viewportHeight="317.46">
+    <group android:translateX="-97.545" android:translateY="-96.995">
         <path
-            android:pathData="M136,341 a35,35 0 1,0 70,0 a35,35 0 1,0 -70,0 Z"
+            android:pathData="M124,349.5 a38.5,38.5 0 1,0 77,0 a38.5,38.5 0 1,0 -77,0 Z"
             android:fillColor="#FFFFFFFF" />
         <path
-            android:pathData="M136,235.5 A140.5,140.5 0 0,1 276.5,376"
-            android:strokeWidth="44"
+            android:pathData="M124,233.45 A154.55,154.55 0 0,1 278.55,388"
+            android:strokeWidth="48.4"
             android:strokeColor="#FFFFFFFF" />
         <path
-            android:pathData="M136,157.5 A218.5,218.5 0 0,1 354.5,376"
-            android:strokeWidth="44"
+            android:pathData="M124,147.65 A240.35,240.35 0 0,1 364.35,388"
+            android:strokeWidth="48.4"
             android:strokeColor="#FFFFFFFF" />
     </group>
 </vector>

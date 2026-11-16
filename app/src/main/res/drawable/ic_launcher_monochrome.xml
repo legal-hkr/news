@@ -8,15 +8,15 @@
     <!-- Drawn on a 512 x 512 grid, moved by 128 to sit in the adaptive icon's safe zone -->
     <group android:translateX="128" android:translateY="128">
         <path
-            android:pathData="M136,341 a35,35 0 1,0 70,0 a35,35 0 1,0 -70,0 Z"
+            android:pathData="M124,349.5 a38.5,38.5 0 1,0 77,0 a38.5,38.5 0 1,0 -77,0 Z"
             android:fillColor="#FF000000" />
         <path
-            android:pathData="M136,235.5 A140.5,140.5 0 0,1 276.5,376"
-            android:strokeWidth="44"
+            android:pathData="M124,233.45 A154.55,154.55 0 0,1 278.55,388"
+            android:strokeWidth="48.4"
             android:strokeColor="#FF000000" />
         <path
-            android:pathData="M136,157.5 A218.5,218.5 0 0,1 354.5,376"
-            android:strokeWidth="44"
+            android:pathData="M124,147.65 A240.35,240.35 0 0,1 364.35,388"
+            android:strokeWidth="48.4"
             android:strokeColor="#FF000000" />
     </group>
 </vector>
