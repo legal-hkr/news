@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- The Headlines widget (SPEC-widgets §6): the newest unread articles of the source as strips – as many as fill the widget's height, with no scrolling (the owner's choice over §6's scrolling list) – and the badge on the first strip's corner. Every row ends with the 6 dp that part it from the next; the column reaches that much below the widget, so the last strip ends at the widget's edge. The list starts 8 dp from the start and 12 dp from the top, so the badge stays inside the widget's bounds. -->
+<!-- The Headlines widget (SPEC-widgets §6): the newest unread articles of the source as strips – as many as fill the widget's height, with no scrolling (the owner's choice over §6's scrolling list) – and the badge on the first strip's corner. Every row ends with the 6 dp that part it from the next; the column reaches 2 dp of them below the widget, so the last strip ends 4 dp above the widget's edge – room for its shadow, as 2 dp at the end. The list starts 8 dp from the start and 12 dp from the top, so the badge stays inside the widget's bounds. -->
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     tools:ignore="SpUsage,UselessParent,ContentDescription,HardcodedText"
@@ -7,6 +7,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_floating_frame"
+    android:clipChildren="false"
     android:clipToOutline="true">
 
     <LinearLayout
@@ -15,7 +16,10 @@
         android:layout_height="match_parent"
         android:layout_marginStart="8dp"
         android:layout_marginTop="12dp"
-        android:layout_marginBottom="-6dp"
+        android:layout_marginEnd="2dp"
+        android:layout_marginBottom="-2dp"
+        android:clipChildren="false"
+        android:clipToPadding="false"
         android:orientation="vertical" />
 
     <include layout="@layout/widget_badge" />

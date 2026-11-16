@@ -7,6 +7,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/widget_floating_frame"
+    android:clipChildren="false"
     android:clipToOutline="true">
 
     <LinearLayout
@@ -15,6 +16,7 @@
         android:layout_height="40dp"
         android:layout_gravity="center"
         android:background="@drawable/widget_pill"
+        android:elevation="2dp"
         android:gravity="center_vertical"
         android:orientation="horizontal"
         android:paddingStart="10dp"

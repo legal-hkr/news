@@ -274,8 +274,8 @@ object Widgets {
         return ((room(widgetHeight) + STRIP_GAP_DP) / (STRIP_DP + STRIP_GAP_DP)).coerceAtLeast(1)
     }
 
-    /** The height the strips of a Headlines widget share, in dp: the widget's less the room the badge takes above the first strip. */
-    private fun room(widgetHeight: Int): Int = (widgetHeight - LIST_TOP_DP).coerceAtLeast(STRIP_DP)
+    /** The height the strips of a Headlines widget share, in dp: the widget's less the room the badge takes above the first strip and the room the last strip's shadow takes below it. */
+    private fun room(widgetHeight: Int): Int = (widgetHeight - LIST_TOP_DP - SHADOW_ROOM_DP).coerceAtLeast(STRIP_DP)
 
     private fun unreadOf(source: Source, feeds: List<Feed>, unread: Map<Long, Int>): Int = when (source) {
         Source.All -> feeds.sumOf { unread[it.id] ?: 0 }
@@ -417,6 +417,8 @@ object Widgets {
     private const val STRIP_DP = 60
     private const val STRIP_GAP_DP = 6
     private const val LIST_TOP_DP = 12
+    /** The room left under the last strip for its shadow (`widget_headlines`). */
+    private const val SHADOW_ROOM_DP = 4
     private const val MIN_PICTURE_PX = 320
     private const val MAX_PICTURE_PX = 900
 }
