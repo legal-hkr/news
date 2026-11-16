@@ -1,0 +1,4 @@
+v0.2.3
+
+Changes:
+- Widgets: a soft shadow under the count pill, the badge, the frames and the headlines

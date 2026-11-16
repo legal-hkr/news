@@ -1,0 +1,4 @@
+v0.2.3
+
+Zmiany:
+- Widżety: delikatny cień pod pastylką z liczbą, plakietką, ramkami i paskami nagłówków

@@ -15,8 +15,8 @@ android {
         applicationId = "sh.hnet.news"
         minSdk = 34
         targetSdk = 37
-        versionCode = 4
-        versionName = "v0.2.2"
+        versionCode = 5
+        versionName = "v0.2.3"
     }
 
     buildTypes {

@@ -2,7 +2,7 @@
 
 A private, full-text feed reader for Android (RSS and Atom) that keeps articles on the phone for reading offline.
 
-**Current version**: v0.2.2
+**Current version**: v0.2.3
 
 Source code and releases: [git.hnet.sh/hkr/news](https://git.hnet.sh/hkr/news)
 
