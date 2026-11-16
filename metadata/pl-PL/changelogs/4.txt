@@ -1,0 +1,4 @@
+v0.2.2
+
+Zmiany:
+- Ikona aplikacji: nieco większy znak i szerszy gradient fal
