@@ -74,6 +74,7 @@ import androidx.compose.material3.TooltipBox
 import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -209,6 +210,15 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
         }
         val current = list
         val rows = current?.rows
+        // The list and its empty state take the pull to refresh alike
+        @Composable
+        fun PullToRefresh(content: @Composable BoxScope.() -> Unit) = PullToRefreshBox(
+            isRefreshing = pulled && progress != null,
+            onRefresh = { pulled = refresh() },
+            state = pull,
+            indicator = { PullToRefreshDefaults.LoadingIndicator(state = pull, isRefreshing = pulled && progress != null, modifier = Modifier.align(Alignment.TopCenter)) },
+            content = content,
+        )
         when {
             // Not read yet: nothing, rather than a flash of the wrong state
             allFeeds == null || source == null || unreadOnly == null -> Unit
@@ -223,24 +233,29 @@ fun ArticlesScreen(model: ArticlesViewModel, onOpenSettings: () -> Unit, onOpenA
                         // A filter is narrowing: the way out is one tap (SPEC §11)
                         onEverything = if (source != Source.All || savedOnly == true || unreadOnly == true) model::searchEverything else null,
                     )
-                    rows.isEmpty() -> EmptyState(
-                        // The app's mark is drawn on the launcher icon's canvas, hence the larger size
-                        R.drawable.ic_launcher_monochrome,
-                        stringResource(
+                    // "Everything read." is where new articles are most awaited: it takes the pull as the list does. The pull
+                    // needs something that scrolls, so the state stands as the one item of a list as tall as the screen
+                    rows.isEmpty() -> PullToRefresh {
+                        val emptyText = stringResource(
                             when {
                                 savedOnly == true -> R.string.msg_empty_no_saved
                                 unreadOnly == true && stored != 0 -> R.string.msg_empty_all_read
                                 else -> R.string.msg_empty_no_articles
                             },
-                        ),
-                        iconSize = 108.dp,
-                    )
-                    else -> PullToRefreshBox(
-                        isRefreshing = pulled && progress != null,
-                        onRefresh = { pulled = refresh() },
-                        state = pull,
-                        indicator = { PullToRefreshDefaults.LoadingIndicator(state = pull, isRefreshing = pulled && progress != null, modifier = Modifier.align(Alignment.TopCenter)) },
-                    ) {
+                        )
+                        LazyColumn(Modifier.fillMaxSize().nestedScroll(topBar.nestedScrollConnection)) {
+                            item {
+                                EmptyState(
+                                    // The app's mark is drawn on the launcher icon's canvas, hence the larger size
+                                    R.drawable.ic_launcher_monochrome,
+                                    emptyText,
+                                    modifier = Modifier.fillParentMaxSize(),
+                                    iconSize = 108.dp,
+                                )
+                            }
+                        }
+                    }
+                    else -> PullToRefresh {
                         ArticleRows(
                             rows, appLook, appLines, listState, { atTop },
                             Modifier.fillMaxSize().nestedScroll(topBar.nestedScrollConnection),
