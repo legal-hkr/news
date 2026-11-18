@@ -1,0 +1,4 @@
+v0.2.4
+
+Poprawki:
+- Odświeżanie przeciągnięciem w dół działa także na pustej liście, np. przy „Wszystko przeczytane”

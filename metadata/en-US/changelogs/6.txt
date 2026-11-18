@@ -1,0 +1,4 @@
+v0.2.4
+
+Fixes:
+- Pull to refresh works on an empty list too, such as “All articles read.”
